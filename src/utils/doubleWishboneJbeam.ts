@@ -1,0 +1,789 @@
+import { ChassisPreset, DriftTuneParams, ModFileSpec } from '../types/drift';
+
+const degToRad = (deg: number) => (deg * Math.PI) / 180;
+const round4 = (n: number) => Number(n.toFixed(4));
+
+export function buildDoubleWishboneJbeamFiles(
+  chassis: ChassisPreset,
+  tune: DriftTuneParams
+): ModFileSpec[] {
+  const id = chassis.beamngInternalId;
+
+  // Derived chassis-scaled suspension geometry (meters, BeamNG coordinates: +X left, -Y front, +Z up)
+  const yF = round4(-chassis.wheelbaseM * 0.5);
+  const yR = round4(chassis.wheelbaseM * 0.5);
+  const halfTrackF = 0.745;
+  const halfTrackR = 0.75;
+
+  // Kingpin Inclination (KPI) + Caster -> exact 3D upper & lower balljoint coordinates
+  const kpiRad = degToRad(tune.kpiDeg);
+  const casterRad = degToRad(tune.frontCasterDeg);
+  const camberFRad = degToRad(tune.frontCamberDeg);
+  const toeFRad = degToRad(tune.frontToeDeg);
+  const camberRRad = degToRad(tune.rearCamberDeg);
+  const toeRRad = degToRad(tune.rearToeDeg);
+
+  const zLBJ = 0.215;
+  const zUBJ = 0.505;
+  const dzKingpin = zUBJ - zLBJ; // 0.290 m
+  const xLBJ = 0.675;
+  const xUBJ = round4(xLBJ - dzKingpin * Math.tan(kpiRad));
+  const yLBJ = round4(yF - 0.135 * Math.tan(casterRad));
+  const yUBJ = round4(yLBJ + dzKingpin * Math.tan(casterRad));
+
+  // Rear-steer knuckle arm pickup fh3 shifted laterally by Ackermann %
+  const ackermannShift = (tune.ackermannPct / 100) * 0.032;
+  const xTieOuter = round4(xLBJ - ackermannShift);
+  const yTieOuter = round4(yF + 0.138);
+  const zTieOuter = 0.245;
+
+  // Wheel spindle hub nodes (fw1r/l inner, fw1rr/ll outer) tilted by front camber & static toe
+  const xHubIn = 0.635;
+  const xHubOut = 0.79;
+  const spindleLen = xHubOut - xHubIn;
+  const zHubCenter = 0.305;
+  const dzCamberF = (spindleLen * 0.5) * Math.sin(-camberFRad);
+  const dyToeF = (spindleLen * 0.5) * Math.sin(toeFRad);
+
+  // Rear spindle hub nodes tilted by rear camber & static toe
+  const dzCamberR = (spindleLen * 0.5) * Math.sin(-camberRRad);
+  const dyToeR = (spindleLen * 0.5) * Math.sin(toeRRad);
+
+  // Steering rack geometry & hydro lock calculation
+  const xRackMount = 0.26;
+  const yRack = yTieOuter;
+  const zRack = zTieOuter;
+  const tieRodLen = Math.hypot(xTieOuter - xRackMount, yTieOuter - yRack, zTieOuter - zRack);
+  const armRadius = Math.hypot(xTieOuter - xLBJ, yTieOuter - yF);
+  const lockRad = degToRad(Math.min(72, Math.max(40, tune.steeringLockDeg)));
+  const travelDelta = armRadius * Math.sin(lockRad);
+  const hydroRatio = round4(Math.min(0.46, Math.max(0.18, travelDelta / tieRodLen)));
+  const hydroInLimit = round4(1 - hydroRatio);
+  const hydroOutLimit = round4(1 + hydroRatio);
+  const wheelHalfLock = Math.round(tune.steeringWheelDeg / 2);
+
+  // Spring, damper, ARB, anti-squat & chassis rigidity values
+  const frontSpringNm = Math.round(tune.frontSpringKn * 1000);
+  const rearSpringNm = Math.round(tune.rearSpringKn * 1000);
+  const frontBumpDamp = Math.round(tune.frontSpringKn * 58);
+  const frontReboundDamp = Math.round(tune.frontSpringKn * 112);
+  const rearBumpDamp = Math.round(tune.rearSpringKn * 52);
+  const rearReboundDamp = Math.round(tune.rearSpringKn * 98);
+  const frontArbSpring = Math.round(28000 * (1 + (50 - tune.rearArbBiasPct) * 0.015));
+  const rearArbSpring = Math.round(24000 * (1 + (tune.rearArbBiasPct - 50) * 0.018));
+  const subframeSpring = Math.round(4501000 * Math.min(1.45, Math.max(0.85, tune.chassisRigidity)));
+  const rackDamp = Math.round(45 + tune.ffbDampingPct * 3.5);
+  const ffbGainScale = round4((tune.ffbStrengthPct / 100) * (0.9 + (tune.frontCasterDeg - 5) * 0.03));
+
+  // Rear anti-squat pickup geometry (higher antiSquatPct raises front link pickup toward IC)
+  const zRearLinkFront = round4(0.21 + (tune.antiSquatPct / 100) * 0.14);
+
+  const controllerCfg = {
+    steerLockDeg: '$dm_steer_lock',
+    steerSpeed: '$dm_steer_speed',
+    steerWheelDeg: '$dm_wheel_deg',
+    ffbStrengthPct: '$dm_ffb_gain',
+    ffbDampingPct: '$dm_ffb_damp',
+    ackermannPct: tune.ackermannPct,
+    kpiDeg: Number(tune.kpiDeg.toFixed(1)),
+    casterDeg: Number(tune.frontCasterDeg.toFixed(1)),
+    camberF: Number(tune.frontCamberDeg.toFixed(1)),
+    camberR: Number(tune.rearCamberDeg.toFixed(1)),
+    toeF: Number(tune.frontToeDeg.toFixed(2)),
+    toeR: Number(tune.rearToeDeg.toFixed(2)),
+    springF: '$dm_spring_F',
+    springR: '$dm_spring_R',
+    arbBiasR: '$dm_arb_bias_R',
+    antiSquatPct: tune.antiSquatPct,
+    frontWeightPct: Number(tune.frontWeightPct.toFixed(1)),
+    cageRigidity: '$dm_cage_rigidity',
+    rearTireWidthMm: tune.rearTireWidthMm,
+    rearTirePsi: '$dm_rear_psi',
+    rearTireGrip: Number(tune.rearTireGrip.toFixed(2)),
+    brakeBiasPct: '$dm_brake_bias',
+    lsdLockPct: '$dm_lsd_lock',
+    finalDriveRatio: '$dm_final_drive',
+    turboBoostPsi: '$dm_boost_psi',
+  };
+
+  // 1. Front Double Wishbone Suspension + Drop Knuckles + Hubs + Wheeldata + Brakes
+  const suspensionFJbeam = {
+    [`${id}_driftmod_dw_suspension_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Double Wishbone Front Suspension (${tune.steeringLockDeg}deg / ${tune.kpiDeg.toFixed(1)} KPI)`,
+        value: 6200,
+      },
+      slotType: `${id}_suspension_F`,
+      slots: [
+        ['type', 'default', 'description'],
+        [`${id}_driftmod_subframe_F`, `${id}_driftmod_tubular_subframe_F`, 'Front Subframe', { coreSlot: true }],
+        [`${id}_driftmod_steering_F`, `${id}_driftmod_rack_F`, 'Steering Rack', { coreSlot: true }],
+        [`${id}_driftmod_coilover_F`, `${id}_driftmod_coilover_F`, 'Front Coilovers', { coreSlot: true }],
+        [`${id}_driftmod_swaybar_F`, `${id}_driftmod_swaybar_F`, 'Front Sway Bar'],
+        [`${id}_driftmod_hub_F`, `${id}_driftmod_hub_F`, 'Front Drop-Knuckle Hubs', { coreSlot: true }],
+      ],
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$trackoffset_F', 'range', '+m', 'DriftMod Alignment', 0.0, -0.04, 0.06, 'Front Track Offset', 'Adjusts front hub offset'],
+        ['$dm_camber_F', 'range', 'deg', 'DriftMod Alignment', tune.frontCamberDeg, -8.0, 0.0, 'Front Camber (Ref)', 'Baked knuckle camber angle'],
+        ['$dm_cage_rigidity', 'range', 'x', 'DriftMod Chassis', Number(tune.chassisRigidity.toFixed(2)), 0.8, 1.5, 'Chromoly Rigidity', 'Front chassis/cage stiffness multiplier'],
+        ['$dm_brake_bias', 'range', '%', 'DriftMod Brakes', tune.brakeBiasPct, 50, 75, 'Front Brake Bias', 'Dual-master front/rear brake split'],
+      ],
+      controller: [['fileName'], ['driftmod', controllerCfg]],
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_knuckle_F', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 5.5 },
+        // Lower balljoints (LBJ)
+        ['fh1r', -xLBJ, yLBJ, zLBJ],
+        ['fh1l', xLBJ, yLBJ, zLBJ],
+        // Upper balljoints (UBJ - computed from KPI & Caster)
+        ['fh2r', -xUBJ, yUBJ, zUBJ],
+        ['fh2l', xUBJ, yUBJ, zUBJ],
+        // Tie-rod knuckle arms (Ackermann pickup)
+        ['fh3r', -xTieOuter, yTieOuter, zTieOuter],
+        ['fh3l', xTieOuter, yTieOuter, zTieOuter],
+        // Knuckle front & rear structural caliper ears
+        ['fh4r', -xLBJ, round4(yF - 0.115), 0.315],
+        ['fh4l', xLBJ, round4(yF - 0.115), 0.315],
+        ['fh5r', -xLBJ, round4(yF + 0.115), 0.315],
+        ['fh5l', xLBJ, round4(yF + 0.115), 0.315],
+        // Upper coilover tower anchor nodes (bridged to subframe & body)
+        ['fc1r', -0.49, yF, 0.72],
+        ['fc1l', 0.49, yF, 0.72],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        // Drop-knuckle rigid upright structure
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: 6501000, beamDamp: 130, beamDeform: 145000, beamStrength: 'FLT_MAX' },
+        ['fh1r', 'fh2r'], ['fh1l', 'fh2l'],
+        ['fh1r', 'fh3r'], ['fh1l', 'fh3l'],
+        ['fh2r', 'fh3r'], ['fh2l', 'fh3l'],
+        ['fh1r', 'fh4r'], ['fh1l', 'fh4l'],
+        ['fh2r', 'fh4r'], ['fh2l', 'fh4l'],
+        ['fh3r', 'fh4r'], ['fh3l', 'fh4l'],
+        ['fh1r', 'fh5r'], ['fh1l', 'fh5l'],
+        ['fh2r', 'fh5r'], ['fh2l', 'fh5l'],
+        ['fh3r', 'fh5r'], ['fh3l', 'fh5l'],
+        ['fh4r', 'fh5r'], ['fh4l', 'fh5l'],
+
+        // Formula Drift Double Wishbone Lower A-Arms (fx1/fx2 -> fh1)
+        { beamSpring: 6001000, beamDamp: 120, beamDeform: 135000, beamStrength: 420000 },
+        ['fx1r', 'fh1r'], ['fx2r', 'fh1r'],
+        ['fx1l', 'fh1l'], ['fx2l', 'fh1l'],
+
+        // Formula Drift Double Wishbone Upper A-Arms (fu1/fu2 -> fh2)
+        { beamSpring: 5501000, beamDamp: 110, beamDeform: 125000, beamStrength: 380000 },
+        ['fu1r', 'fh2r'], ['fu2r', 'fh2r'],
+        ['fu1l', 'fh2l'], ['fu2l', 'fh2l'],
+
+        // Coilover upper tower bracing to subframe upper mounts
+        { beamSpring: 4801000, beamDamp: 110, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        ['fc1r', 'fu1r'], ['fc1r', 'fu2r'], ['fc1r', 'fx4r'], ['fc1r', 'fc1l'],
+        ['fc1l', 'fu1l'], ['fc1l', 'fu2l'], ['fc1l', 'fx4l'],
+        { optional: true },
+        ['fc1r', 'fs1r'], ['fc1r', 'f12rr'], ['fc1r', 'f12r'], ['fc1r', 'f5r'],
+        ['fc1l', 'fs1l'], ['fc1l', 'f12ll'], ['fc1l', 'f12l'], ['fc1l', 'f5l'],
+        { optional: false },
+      ],
+    },
+    [`${id}_driftmod_hub_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod 5-Lug Drop-Knuckle Front Hubs',
+        value: 850,
+      },
+      slotType: `${id}_driftmod_hub_F`,
+      slots: [
+        ['type', 'default', 'description'],
+        [`${id}_driftmod_wheeldata_F`, `${id}_driftmod_wheeldata_F`, 'Front Wheel Data', { coreSlot: true }],
+        [`${id}_driftmod_brake_F`, `${id}_driftmod_brake_F`, 'Front Drift Brakes'],
+        ['wheel_F_5', 'steelwheel_01a_15x8_F', 'Front Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_F', y: 0, z: 0 } }],
+      ],
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_hub_F', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 6.0 },
+        ['fw1r', -xHubIn, round4(yF + dyToeF), round4(zHubCenter + dzCamberF)],
+        ['fw1rr', -xHubOut, round4(yF - dyToeF), round4(zHubCenter - dzCamberF)],
+        ['fw1l', xHubIn, round4(yF + dyToeF), round4(zHubCenter + dzCamberF)],
+        ['fw1ll', xHubOut, round4(yF - dyToeF), round4(zHubCenter - dzCamberF)],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamSpring: 6501000, beamDamp: 120, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        ['fw1r', 'fw1rr'], ['fw1l', 'fw1ll'],
+        ['fw1r', 'fh1r'], ['fw1r', 'fh2r'], ['fw1r', 'fh3r'], ['fw1r', 'fh4r'], ['fw1r', 'fh5r'],
+        ['fw1rr', 'fh1r'], ['fw1rr', 'fh2r'], ['fw1rr', 'fh3r'], ['fw1rr', 'fh4r'], ['fw1rr', 'fh5r'],
+        ['fw1l', 'fh1l'], ['fw1l', 'fh2l'], ['fw1l', 'fh3l'], ['fw1l', 'fh4l'], ['fw1l', 'fh5l'],
+        ['fw1ll', 'fh1l'], ['fw1ll', 'fh2l'], ['fw1ll', 'fh3l'], ['fw1ll', 'fh4l'], ['fw1ll', 'fh5l'],
+      ],
+    },
+    [`${id}_driftmod_wheeldata_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod Front Spindle Wheel Interface',
+        value: 150,
+      },
+      slotType: `${id}_driftmod_wheeldata_F`,
+      pressureWheels: [
+        ['name', 'hubGroup', 'group', 'node1:', 'node2:', 'nodeS', 'nodeArm:', 'wheelDir'],
+        { disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
+        { brakeTorque: '$=$braketorque_F' },
+        { parkingTorque: 0 },
+        { propulsed: 0 },
+        ['FR', 'wheel_FR', 'tire_FR', 'fw1rr', 'fw1r', 9999, 'fh5r', 1],
+        ['FL', 'wheel_FL', 'tire_FL', 'fw1l', 'fw1ll', 9999, 'fh5l', -1],
+      ],
+    },
+    [`${id}_driftmod_brake_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod 6-Piston Front Drift Calipers',
+        value: 950,
+      },
+      slotType: `${id}_driftmod_brake_F`,
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$braketorque_F', 'range', 'Nm', 'DriftMod Brakes', 2650, 1200, 4200, 'Front Brake Torque', '6-piston front caliper peak clamping torque'],
+      ],
+    },
+  };
+
+  // 2. Selectable Front Subframes (Tubular Chromoly & Reinforced Street)
+  const subframeFJbeam = {
+    [`${id}_driftmod_tubular_subframe_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Chromoly Tubular Front Subframe (${tune.chassisRigidity.toFixed(2)}x Rigidity)`,
+        value: 2400,
+      },
+      slotType: `${id}_driftmod_subframe_F`,
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_subframe_F', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 4.5 },
+        ['fx1r', -0.34, round4(yF - 0.19), 0.21],
+        ['fx1l', 0.34, round4(yF - 0.19), 0.21],
+        ['fx2r', -0.34, round4(yF + 0.19), 0.21],
+        ['fx2l', 0.34, round4(yF + 0.19), 0.21],
+        ['fu1r', -0.4, round4(yF - 0.15), 0.47],
+        ['fu1l', 0.4, round4(yF - 0.15), 0.47],
+        ['fu2r', -0.4, round4(yF + 0.15), 0.47],
+        ['fu2l', 0.4, round4(yF + 0.15), 0.47],
+        ['fx3r', -xRackMount, yRack, zRack],
+        ['fx3l', xRackMount, yRack, zRack],
+        ['fx4r', -0.28, round4(yF - 0.14), 0.34],
+        ['fx4l', 0.28, round4(yF - 0.14), 0.34],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: subframeSpring, beamDamp: 110, beamDeform: 165000, beamStrength: 'FLT_MAX' },
+        // Lower subframe perimeter & X-bracing
+        ['fx1r', 'fx1l'], ['fx2r', 'fx2l'], ['fx1r', 'fx2r'], ['fx1l', 'fx2l'],
+        ['fx1r', 'fx2l'], ['fx1l', 'fx2r'],
+        // Steering rack mounts braced to lower & upper subframe
+        ['fx3r', 'fx3l'], ['fx3r', 'fx2r'], ['fx3r', 'fx1r'], ['fx3r', 'fx2l'],
+        ['fx3l', 'fx2l'], ['fx3l', 'fx1l'], ['fx3l', 'fx2r'],
+        ['fx3r', 'fu2r'], ['fx3r', 'fu1r'], ['fx3l', 'fu2l'], ['fx3l', 'fu1l'],
+        // Upper wishbone cradle braced to lower & crossmembers
+        ['fu1r', 'fu2r'], ['fu1l', 'fu2l'], ['fu1r', 'fx1r'], ['fu2r', 'fx2r'],
+        ['fu1r', 'fx2r'], ['fu2r', 'fx1r'], ['fu1l', 'fx1l'], ['fu2l', 'fx2l'],
+        ['fu1l', 'fx2l'], ['fu2l', 'fx1l'],
+        ['fx4r', 'fx4l'], ['fx4r', 'fx1r'], ['fx4r', 'fu1r'], ['fx4r', 'fx3r'],
+        ['fx4l', 'fx1l'], ['fx4l', 'fu1l'], ['fx4l', 'fx3l'],
+        // Chassis unibody tie-in beams (optional flags support all 5 chassis node variants cleanly)
+        { optional: true },
+        ['fx1r', 'f10rr'], ['fx1r', 'f10r'], ['fx1r', 'f11rr'], ['fx1r', 'f11r'],
+        ['fx1l', 'f10ll'], ['fx1l', 'f10l'], ['fx1l', 'f11ll'], ['fx1l', 'f11l'],
+        ['fx2r', 'f1r'], ['fx2r', 'f1rr'], ['fx2r', 'f5r'], ['fx2r', 'f10rr'], ['fx2r', 'f10r'],
+        ['fx2l', 'f1l'], ['fx2l', 'f1ll'], ['fx2l', 'f5l'], ['fx2l', 'f10ll'], ['fx2l', 'f10l'],
+        ['fu1r', 'f12rr'], ['fu1r', 'f12r'], ['fu1r', 'fs1r'],
+        ['fu1l', 'f12ll'], ['fu1l', 'f12l'], ['fu1l', 'fs1l'],
+        ['fu2r', 'f5r'], ['fu2r', 'fs1r'], ['fu2r', 'f12rr'], ['fu2r', 'f12r'],
+        ['fu2l', 'f5l'], ['fu2l', 'fs1l'], ['fu2l', 'f12ll'], ['fu2l', 'f12l'],
+        ['fx4r', 'f12rr'], ['fx4r', 'f12r'], ['fx4r', 'f10rr'],
+        ['fx4l', 'f12ll'], ['fx4l', 'f12l'], ['fx4l', 'f10ll'],
+        { optional: false },
+      ],
+    },
+    [`${id}_driftmod_street_subframe_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod Gusseted OEM-Style Double Wishbone Subframe',
+        value: 1450,
+      },
+      slotType: `${id}_driftmod_subframe_F`,
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_subframe_F', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 5.5 },
+        ['fx1r', -0.34, round4(yF - 0.19), 0.21],
+        ['fx1l', 0.34, round4(yF - 0.19), 0.21],
+        ['fx2r', -0.34, round4(yF + 0.19), 0.21],
+        ['fx2l', 0.34, round4(yF + 0.19), 0.21],
+        ['fu1r', -0.4, round4(yF - 0.15), 0.47],
+        ['fu1l', 0.4, round4(yF - 0.15), 0.47],
+        ['fu2r', -0.4, round4(yF + 0.15), 0.47],
+        ['fu2l', 0.4, round4(yF + 0.15), 0.47],
+        ['fx3r', -xRackMount, yRack, zRack],
+        ['fx3l', xRackMount, yRack, zRack],
+        ['fx4r', -0.28, round4(yF - 0.14), 0.34],
+        ['fx4l', 0.28, round4(yF - 0.14), 0.34],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: Math.round(subframeSpring * 0.85), beamDamp: 120, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        ['fx1r', 'fx1l'], ['fx2r', 'fx2l'], ['fx1r', 'fx2r'], ['fx1l', 'fx2l'],
+        ['fx1r', 'fx2l'], ['fx1l', 'fx2r'],
+        ['fx3r', 'fx3l'], ['fx3r', 'fx2r'], ['fx3r', 'fx1r'], ['fx3r', 'fx2l'],
+        ['fx3l', 'fx2l'], ['fx3l', 'fx1l'], ['fx3l', 'fx2r'],
+        ['fx3r', 'fu2r'], ['fx3r', 'fu1r'], ['fx3l', 'fu2l'], ['fx3l', 'fu1l'],
+        ['fu1r', 'fu2r'], ['fu1l', 'fu2l'], ['fu1r', 'fx1r'], ['fu2r', 'fx2r'],
+        ['fu1r', 'fx2r'], ['fu2r', 'fx1r'], ['fu1l', 'fx1l'], ['fu2l', 'fx2l'],
+        ['fu1l', 'fx2l'], ['fu2l', 'fx1l'],
+        ['fx4r', 'fx4l'], ['fx4r', 'fx1r'], ['fx4r', 'fu1r'], ['fx4r', 'fx3r'],
+        ['fx4l', 'fx1l'], ['fx4l', 'fu1l'], ['fx4l', 'fx3l'],
+        { optional: true },
+        ['fx1r', 'f10rr'], ['fx1r', 'f10r'], ['fx1r', 'f11rr'], ['fx1r', 'f11r'],
+        ['fx1l', 'f10ll'], ['fx1l', 'f10l'], ['fx1l', 'f11ll'], ['fx1l', 'f11l'],
+        ['fx2r', 'f1r'], ['fx2r', 'f1rr'], ['fx2r', 'f5r'], ['fx2r', 'f10rr'],
+        ['fx2l', 'f1l'], ['fx2l', 'f1ll'], ['fx2l', 'f5l'], ['fx2l', 'f10ll'],
+        ['fu1r', 'f12rr'], ['fu1r', 'f12r'], ['fu1r', 'fs1r'],
+        ['fu1l', 'f12ll'], ['fu1l', 'f12l'], ['fu1l', 'fs1l'],
+        ['fu2r', 'f5r'], ['fu2r', 'fs1r'], ['fu2l', 'f5l'], ['fu2l', 'fs1l'],
+        { optional: false },
+      ],
+    },
+  };
+
+  // 3. Selectable Steering Rack + 900° FFB Calibration + Ackermann Tie Rods
+  const steeringFJbeam = {
+    [`${id}_driftmod_rack_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod ${tune.steeringLockDeg}deg Quick-Ratio Drift Rack (${tune.ackermannPct}% Ack / ${tune.steeringWheelDeg} FFB)`,
+        value: 1650,
+      },
+      slotType: `${id}_driftmod_steering_F`,
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$dm_steer_lock', 'range', 'deg', 'DriftMod Steering & FFB', tune.steeringLockDeg, 40, 72, 'Max Steering Lock', 'Physical knuckle lock target'],
+        ['$dm_steer_speed', 'range', 'x', 'DriftMod Steering & FFB', Number(tune.steeringSpeed.toFixed(2)), 0.6, 1.8, 'Rack Speed Multiplier', 'Countersteer hydro in/out rate multiplier'],
+        ['$dm_wheel_deg', 'range', 'deg', 'DriftMod Steering & FFB', tune.steeringWheelDeg, 540, 1080, 'FFB Wheel Rotation', 'Physical wheel lock-to-lock (900 for DD/belt wheels)'],
+        ['$dm_ffb_gain', 'range', '%', 'DriftMod Steering & FFB', tune.ffbStrengthPct, 60, 160, 'FFB Self-Steer Gain', 'Self-aligning torque strength on wheel release'],
+        ['$dm_ffb_damp', 'range', '%', 'DriftMod Steering & FFB', tune.ffbDampingPct, 0, 60, 'Steering Rack Damping', 'Smooths high-frequency DD wheel oscillation'],
+        ['$toe_FR', 'range', '', 'DriftMod Alignment', 1.0, 0.985, 1.015, 'Front Tie-Rod Trim', 'Fine static toe trim'],
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        // Steering rack damper beams (smooths DD chatter without slowing hydro response)
+        { beamSpring: 0, beamDamp: rackDamp, beamDeform: 'FLT_MAX', beamStrength: 'FLT_MAX' },
+        ['fx3r', 'fh3r'],
+        ['fx3l', 'fh3l'],
+      ],
+      hydros: [
+        ['id1:', 'id2:'],
+        {
+          beamPrecompression: '$toe_FR',
+          beamType: '|NORMAL',
+          beamLongBound: 1.0,
+          beamShortBound: 1.0,
+          beamSpring: 5201000,
+          beamDamp: 100,
+          beamDeform: 120000,
+          beamStrength: 280000,
+          factor: -hydroRatio,
+          steeringWheelLock: wheelHalfLock,
+          inRate: round4(3.8 * tune.steeringSpeed),
+          outRate: round4(3.8 * tune.steeringSpeed),
+          inputSource: 'steering_input',
+          ffCoef: ffbGainScale,
+        },
+        ['fx3r', 'fh3r', { factor: -hydroRatio, inLimit: hydroInLimit, outLimit: hydroOutLimit }],
+        ['fx3l', 'fh3l', { factor: hydroRatio, inLimit: hydroInLimit, outLimit: hydroOutLimit }],
+      ],
+    },
+  };
+
+  // 4. Selectable Front Coilovers & Adjustable Front Sway Bar
+  const coiloverFJbeam = {
+    [`${id}_driftmod_coilover_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod 2-Way Front Drift Coilovers (${tune.frontSpringKn} kN/m)`,
+        value: 1400,
+      },
+      slotType: `${id}_driftmod_coilover_F`,
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$dm_spring_F', 'range', 'N/m', 'DriftMod Coilovers', frontSpringNm, 35000, 110000, 'Front Spring Rate', 'Front coilover spring stiffness'],
+        ['$damp_bump_F', 'range', 'N/m/s', 'DriftMod Coilovers', frontBumpDamp, 2000, 10000, 'Front Bump Damping', 'Low-speed compression damping'],
+        ['$damp_rebound_F', 'range', 'N/m/s', 'DriftMod Coilovers', frontReboundDamp, 3500, 16000, 'Front Rebound Damping', 'Extension rebound control'],
+        ['$rideheight_F', 'range', '', 'DriftMod Coilovers', 1.0, 0.9, 1.12, 'Front Ride Height', 'Coilover perch precompression'],
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        {
+          beamPrecompression: '$rideheight_F',
+          beamType: '|BOUNDED',
+          beamLongBound: 1.0,
+          beamShortBound: 1.0,
+          beamSpring: '$dm_spring_F',
+          beamDamp: '$damp_bump_F',
+          beamDampRebound: '$damp_rebound_F',
+          beamDampFast: '$=$damp_bump_F*0.5',
+          beamDampReboundFast: '$=$damp_rebound_F*0.5',
+          beamDampVelocitySplit: 0.14,
+          beamLimitSpring: 2601000,
+          beamLimitDamp: 1200,
+          longBoundRange: 0.09,
+          shortBoundRange: 0.085,
+          boundZone: 0.025,
+          beamDeform: 140000,
+          beamStrength: 340000,
+        },
+        ['fh1r', 'fc1r'],
+        ['fh1l', 'fc1l'],
+      ],
+    },
+    [`${id}_driftmod_swaybar_F`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Adjustable Front ARB (${100 - tune.rearArbBiasPct}% Front Bias)`,
+        value: 520,
+      },
+      slotType: `${id}_driftmod_swaybar_F`,
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_arb_F', selfCollision: false, collision: false, nodeWeight: 1.8 },
+        ['arbf1r', -0.46, yF, 0.25],
+        ['arbf1l', 0.46, yF, 0.25],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamSpring: 1201000, beamDamp: 60, beamDeform: 90000, beamStrength: 'FLT_MAX' },
+        ['arbf1r', 'fx1r'], ['arbf1r', 'fx2r'],
+        ['arbf1l', 'fx1l'], ['arbf1l', 'fx2l'],
+        { beamSpring: frontArbSpring, beamDamp: 45 },
+        ['arbf1r', 'fh1r'], ['arbf1l', 'fh1l'],
+        ['arbf1r', 'arbf1l'],
+      ],
+    },
+  };
+
+  // 5. Rear Anti-Squat Suspension + Subframe + Coilovers + ARB + Hubs + Rear Diff Hook
+  const suspensionRJbeam = {
+    [`${id}_driftmod_suspension_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Anti-Squat Multi-Link Rear Suspension (${tune.antiSquatPct}% Anti-Squat)`,
+        value: 4800,
+      },
+      slotType: `${id}_suspension_R`,
+      slots: [
+        ['type', 'default', 'description'],
+        [`${id}_driftmod_subframe_R`, `${id}_driftmod_subframe_R`, 'Rear Subframe', { coreSlot: true }],
+        [`${id}_driftmod_coilover_R`, `${id}_driftmod_coilover_R`, 'Rear Coilovers', { coreSlot: true }],
+        [`${id}_driftmod_swaybar_R`, `${id}_driftmod_swaybar_R`, 'Rear Sway Bar'],
+        [`${id}_driftmod_hub_R`, `${id}_driftmod_hub_R`, 'Rear 5-Lug Hubs', { coreSlot: true }],
+        [`${id}_differential_R`, `${id}_driftmod_diff_R`, 'Rear Differential'],
+      ],
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$trackoffset_R', 'range', '+m', 'DriftMod Alignment', 0.0, -0.04, 0.06, 'Rear Track Offset', 'Adjusts rear hub offset'],
+        ['$dm_rear_psi', 'range', 'PSI', 'DriftMod Tires', tune.rearTirePsi, 12, 42, 'Rear Tire Pressure', 'Target rear tire air pressure'],
+        ['$dm_lsd_lock', 'range', '%', 'DriftMod Drivetrain', tune.lsdLockPct, 0, 100, 'Rear LSD / Spool Lock', 'Clutch lockup / welded spool'],
+        ['$dm_final_drive', 'range', ':1', 'DriftMod Drivetrain', Number(tune.finalDriveRatio.toFixed(2)), 3.1, 4.9, 'Final Drive Ratio', 'Rear differential gear ratio'],
+        ['$dm_boost_psi', 'range', 'PSI', 'DriftMod Drivetrain', tune.turboBoostPsi, 0, 28, 'Target Turbo Boost', 'Turbo wastegate target PSI'],
+      ],
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_knuckle_R', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 5.5 },
+        ['rh1r', -0.68, yR, 0.215],
+        ['rh1l', 0.68, yR, 0.215],
+        ['rh2r', -0.66, yR, 0.455],
+        ['rh2l', 0.66, yR, 0.455],
+        ['rh4r', -0.68, round4(yR - 0.12), 0.315],
+        ['rh4l', 0.68, round4(yR - 0.12), 0.315],
+        ['rh5r', -0.68, round4(yR + 0.12), 0.315],
+        ['rh5l', 0.68, round4(yR + 0.12), 0.315],
+        ['rc1r', -0.49, yR, 0.72],
+        ['rc1l', 0.49, yR, 0.72],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: 6501000, beamDamp: 130, beamDeform: 145000, beamStrength: 'FLT_MAX' },
+        ['rh1r', 'rh2r'], ['rh1l', 'rh2l'],
+        ['rh1r', 'rh4r'], ['rh1l', 'rh4l'],
+        ['rh2r', 'rh4r'], ['rh2l', 'rh4l'],
+        ['rh1r', 'rh5r'], ['rh1l', 'rh5l'],
+        ['rh2r', 'rh5r'], ['rh2l', 'rh5l'],
+        ['rh4r', 'rh5r'], ['rh4l', 'rh5l'],
+        // Rear multi-link lower & anti-squat trailing arms
+        { beamSpring: 5801000, beamDamp: 115, beamDeform: 135000, beamStrength: 420000 },
+        ['rx1r', 'rh1r'], ['rx2r', 'rh1r'], ['rx1r', 'rh4r'],
+        ['rx1l', 'rh1l'], ['rx2l', 'rh1l'], ['rx1l', 'rh4l'],
+        // Rear upper camber & toe control links
+        ['ru1r', 'rh2r'], ['ru2r', 'rh2r'], ['rx2r', 'rh5r'],
+        ['ru1l', 'rh2l'], ['ru2l', 'rh2l'], ['rx2l', 'rh5l'],
+        // Rear shock tower bracing
+        { beamSpring: 4801000, beamDamp: 110, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        ['rc1r', 'ru1r'], ['rc1r', 'ru2r'], ['rc1r', 'rc1l'],
+        ['rc1l', 'ru1l'], ['rc1l', 'ru2l'],
+        { optional: true },
+        ['rc1r', 'rs1r'], ['rc1r', 'r5r'], ['rc1r', 'r2r'],
+        ['rc1l', 'rs1l'], ['rc1l', 'r5l'], ['rc1l', 'r2l'],
+        { optional: false },
+      ],
+    },
+    [`${id}_driftmod_subframe_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Solid-Bushing Rear Subframe (${tune.antiSquatPct}% Anti-Squat)`,
+        value: 1950,
+      },
+      slotType: `${id}_driftmod_subframe_R`,
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_subframe_R', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 4.8 },
+        ['rx1r', -0.36, round4(yR - 0.24), zRearLinkFront],
+        ['rx1l', 0.36, round4(yR - 0.24), zRearLinkFront],
+        ['rx2r', -0.34, round4(yR + 0.16), 0.23],
+        ['rx2l', 0.34, round4(yR + 0.16), 0.23],
+        ['ru1r', -0.38, round4(yR - 0.14), 0.44],
+        ['ru1l', 0.38, round4(yR - 0.14), 0.44],
+        ['ru2r', -0.38, round4(yR + 0.14), 0.44],
+        ['ru2l', 0.38, round4(yR + 0.14), 0.44],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamSpring: subframeSpring, beamDamp: 115, beamDeform: 165000, beamStrength: 'FLT_MAX' },
+        ['rx1r', 'rx1l'], ['rx2r', 'rx2l'], ['rx1r', 'rx2r'], ['rx1l', 'rx2l'],
+        ['rx1r', 'rx2l'], ['rx1l', 'rx2r'],
+        ['ru1r', 'ru2r'], ['ru1l', 'ru2l'], ['ru1r', 'ru1l'], ['ru2r', 'ru2l'],
+        ['ru1r', 'rx1r'], ['ru2r', 'rx2r'], ['ru1r', 'rx2r'], ['ru2r', 'rx1r'],
+        ['ru1l', 'rx1l'], ['ru2l', 'rx2l'], ['ru1l', 'rx2l'], ['ru2l', 'rx1l'],
+        { optional: true },
+        ['rx1r', 'r1r'], ['rx1r', 'r1rr'], ['rx1r', 'r2r'],
+        ['rx1l', 'r1l'], ['rx1l', 'r1ll'], ['rx1l', 'r2l'],
+        ['rx2r', 'r2r'], ['rx2r', 'r3r'], ['rx2r', 'r5r'],
+        ['rx2l', 'r2l'], ['rx2l', 'r3l'], ['rx2l', 'r5l'],
+        ['ru1r', 'r5r'], ['ru1r', 'rs1r'], ['ru2r', 'r5r'], ['ru2r', 'rs1r'],
+        ['ru1l', 'r5l'], ['ru1l', 'rs1l'], ['ru2l', 'r5l'], ['ru2l', 'rs1l'],
+        { optional: false },
+      ],
+    },
+    [`${id}_driftmod_coilover_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod 2-Way Rear Drift Coilovers (${tune.rearSpringKn} kN/m)`,
+        value: 1350,
+      },
+      slotType: `${id}_driftmod_coilover_R`,
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$dm_spring_R', 'range', 'N/m', 'DriftMod Coilovers', rearSpringNm, 25000, 90000, 'Rear Spring Rate', 'Rear coilover spring stiffness'],
+        ['$damp_bump_R', 'range', 'N/m/s', 'DriftMod Coilovers', rearBumpDamp, 1800, 9000, 'Rear Bump Damping', 'Rear compression damping'],
+        ['$damp_rebound_R', 'range', 'N/m/s', 'DriftMod Coilovers', rearReboundDamp, 3000, 14000, 'Rear Rebound Damping', 'Rear extension rebound control'],
+        ['$rideheight_R', 'range', '', 'DriftMod Coilovers', 1.0, 0.9, 1.12, 'Rear Ride Height', 'Rear coilover perch precompression'],
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        {
+          beamPrecompression: '$rideheight_R',
+          beamType: '|BOUNDED',
+          beamLongBound: 1.0,
+          beamShortBound: 1.0,
+          beamSpring: '$dm_spring_R',
+          beamDamp: '$damp_bump_R',
+          beamDampRebound: '$damp_rebound_R',
+          beamDampFast: '$=$damp_bump_R*0.5',
+          beamDampReboundFast: '$=$damp_rebound_R*0.5',
+          beamDampVelocitySplit: 0.14,
+          beamLimitSpring: 2401000,
+          beamLimitDamp: 1100,
+          longBoundRange: 0.095,
+          shortBoundRange: 0.085,
+          boundZone: 0.025,
+          beamDeform: 140000,
+          beamStrength: 340000,
+        },
+        ['rh1r', 'rc1r'],
+        ['rh1l', 'rc1l'],
+      ],
+    },
+    [`${id}_driftmod_swaybar_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Adjustable Rear ARB (${tune.rearArbBiasPct}% Rear Bias)`,
+        value: 460,
+      },
+      slotType: `${id}_driftmod_swaybar_R`,
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_arb_R', selfCollision: false, collision: false, nodeWeight: 1.6 },
+        ['arbr1r', -0.46, yR, 0.25],
+        ['arbr1l', 0.46, yR, 0.25],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamSpring: 1101000, beamDamp: 55, beamDeform: 90000, beamStrength: 'FLT_MAX' },
+        ['arbr1r', 'rx1r'], ['arbr1r', 'rx2r'],
+        ['arbr1l', 'rx1l'], ['arbr1l', 'rx2l'],
+        { beamSpring: rearArbSpring, beamDamp: 40 },
+        ['arbr1r', 'rh1r'], ['arbr1l', 'rh1l'],
+        ['arbr1r', 'arbr1l'],
+      ],
+    },
+    [`${id}_driftmod_hub_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod 5-Lug Rear Hubs',
+        value: 750,
+      },
+      slotType: `${id}_driftmod_hub_R`,
+      slots: [
+        ['type', 'default', 'description'],
+        [`${id}_driftmod_wheeldata_R`, `${id}_driftmod_wheeldata_R`, 'Rear Wheel Data', { coreSlot: true }],
+        [`${id}_driftmod_brake_R`, `${id}_driftmod_brake_R`, 'Rear Drift Brakes & Hydro'],
+        ['wheel_R_5', 'steelwheel_01a_15x8_R', 'Rear Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_R', y: 0, z: 0 } }],
+      ],
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { group: 'driftmod_hub_R', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 6.0 },
+        ['rw1r', -0.64, round4(yR + dyToeR), round4(zHubCenter + dzCamberR)],
+        ['rw1rr', -0.795, round4(yR - dyToeR), round4(zHubCenter - dzCamberR)],
+        ['rw1l', 0.64, round4(yR + dyToeR), round4(zHubCenter + dzCamberR)],
+        ['rw1ll', 0.795, round4(yR - dyToeR), round4(zHubCenter - dzCamberR)],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamSpring: 6501000, beamDamp: 120, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        ['rw1r', 'rw1rr'], ['rw1l', 'rw1ll'],
+        ['rw1r', 'rh1r'], ['rw1r', 'rh2r'], ['rw1r', 'rh4r'], ['rw1r', 'rh5r'],
+        ['rw1rr', 'rh1r'], ['rw1rr', 'rh2r'], ['rw1rr', 'rh4r'], ['rw1rr', 'rh5r'],
+        ['rw1l', 'rh1l'], ['rw1l', 'rh2l'], ['rw1l', 'rh4l'], ['rw1l', 'rh5l'],
+        ['rw1ll', 'rh1l'], ['rw1ll', 'rh2l'], ['rw1ll', 'rh4l'], ['rw1ll', 'rh5l'],
+      ],
+    },
+    [`${id}_driftmod_wheeldata_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod Rear Axle Wheel Interface',
+        value: 150,
+      },
+      slotType: `${id}_driftmod_wheeldata_R`,
+      pressureWheels: [
+        ['name', 'hubGroup', 'group', 'node1:', 'node2:', 'nodeS', 'nodeArm:', 'wheelDir'],
+        { disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
+        { brakeTorque: '$=$braketorque_R' },
+        { parkingTorque: 2800 },
+        { propulsed: 1 },
+        ['RR', 'wheel_RR', 'tire_RR', 'rw1rr', 'rw1r', 9999, 'rh5r', 1],
+        ['RL', 'wheel_RL', 'tire_RL', 'rw1l', 'rw1ll', 9999, 'rh5l', -1],
+      ],
+    },
+    [`${id}_driftmod_brake_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: 'DriftMod Dual-Caliper Hydro Rear Brakes',
+        value: 820,
+      },
+      slotType: `${id}_driftmod_brake_R`,
+      variables: [
+        ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
+        ['$braketorque_R', 'range', 'Nm', 'DriftMod Brakes', 1450, 600, 2600, 'Rear Brake Torque', 'Rear caliper torque + hydro handbrake'],
+      ],
+    },
+    [`${id}_driftmod_diff_R`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod ${tune.lsdLockPct >= 98 ? 'Welded Spool' : '2-Way Clutch LSD'} (${tune.finalDriveRatio.toFixed(2)}:1)`,
+        value: 1250,
+      },
+      slotType: `${id}_differential_R`,
+      powertrain: [
+        ['type', 'name', 'inputName', 'inputIndex'],
+        [
+          'differential',
+          'differential_R',
+          'driveshaft',
+          1,
+          {
+            diffType: tune.lsdLockPct >= 98 ? 'locked' : 'lsd',
+            gearRatio: '$dm_final_drive',
+            lsdPreload: Math.round(60 + tune.lsdLockPct * 1.4),
+            lsdLockCoef: round4(tune.lsdLockPct / 100),
+            lsdRevLockCoef: round4((tune.lsdLockPct / 100) * 0.9),
+            defaultVirtualInertia: 0.25,
+            friction: 8,
+            uiName: 'Rear Differential',
+          },
+        ],
+        [
+          'shaft',
+          'wheelaxleRL',
+          'differential_R',
+          1,
+          { connectedWheel: 'RL', friction: 2, uiName: 'Rear Left Halfshaft' },
+        ],
+        [
+          'shaft',
+          'wheelaxleRR',
+          'differential_R',
+          2,
+          { connectedWheel: 'RR', friction: 2, uiName: 'Rear Right Halfshaft' },
+        ],
+      ],
+    },
+  };
+
+  return [
+    {
+      filename: `${id}_driftmod_suspension_F.jbeam`,
+      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_suspension_F.jbeam`,
+      language: 'json',
+      summary: `Real Double Wishbone front suspension (${tune.kpiDeg.toFixed(1)}° KPI, +${tune.frontCasterDeg.toFixed(1)}° Caster, ${tune.frontCamberDeg.toFixed(1)}° Camber) with selectable Subframe, Steering Rack, Coilovers, Sway Bar & 5-Lug Hubs.`,
+      content: JSON.stringify(suspensionFJbeam, null, 2),
+    },
+    {
+      filename: `${id}_driftmod_subframe_F.jbeam`,
+      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_subframe_F.jbeam`,
+      language: 'json',
+      summary: `Selectable Chromoly Tubular & Street Double Wishbone Front Subframes with ${tune.chassisRigidity.toFixed(2)}x chassis rigidity.`,
+      content: JSON.stringify(subframeFJbeam, null, 2),
+    },
+    {
+      filename: `${id}_driftmod_steering_F.jbeam`,
+      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_steering_F.jbeam`,
+      language: 'json',
+      summary: `Selectable ${tune.steeringLockDeg}° Quick-Ratio Drift Steering Rack with ${tune.ackermannPct}% Ackermann tie-rod geometry & ${tune.steeringWheelDeg}° DD/belt FFB.`,
+      content: JSON.stringify(steeringFJbeam, null, 2),
+    },
+    {
+      filename: `${id}_driftmod_coilover_F.jbeam`,
+      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_coilover_F.jbeam`,
+      language: 'json',
+      summary: `Selectable ${tune.frontSpringKn} kN/m 2-Way Front Drift Coilovers and Adjustable Front Sway Bar.`,
+      content: JSON.stringify(coiloverFJbeam, null, 2),
+    },
+    {
+      filename: `${id}_driftmod_suspension_R.jbeam`,
+      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_suspension_R.jbeam`,
+      language: 'json',
+      summary: `Rear Anti-Squat Multi-Link Suspension (${tune.antiSquatPct}% anti-squat) with Rear Subframe, ${tune.rearSpringKn} kN/m Coilovers, ARB, Hubs & Differential slot.`,
+      content: JSON.stringify(suspensionRJbeam, null, 2),
+    },
+  ];
+}

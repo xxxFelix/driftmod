@@ -1,0 +1,5 @@
+{
+  "name": "DriftMod",
+  "description": "Interactive BeamNG.drive drift mod tuning workbench, real-time 2D slip-angle track simulator, and JBeam configuration generator.",
+  "requestFramePermissions": []
+}
