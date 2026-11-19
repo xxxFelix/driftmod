@@ -83,32 +83,32 @@ export const FrontGeometryWireframe: React.FC<FrontGeometryWireframeProps> = ({
   const leftWheelX = 116;
   const rightWheelX = 324;
   const chassisHalfW = 46;
-  const rackY = axleY + 26;
+  const rackY = axleY + 5;
 
   // Left-turn preview: Left wheel is inner (-innerDeg), Right wheel is outer (-outerDeg)
   const innerRad = (-innerDeg * Math.PI) / 180;
   const outerRad = (-outerDeg * Math.PI) / 180;
 
   // Steering rack translates right (+x) for a rear-steer left turn
-  const rackTravelPx = steerFrac * 18;
-  const rackLeftEndX = 220 - chassisHalfW - 8 + rackTravelPx;
-  const rackRightEndX = 220 + chassisHalfW + 8 + rackTravelPx;
+  const rackTravelPx = steerFrac * 17;
+  const rackLeftEndX = 220 - chassisHalfW - 4 + rackTravelPx;
+  const rackRightEndX = 220 + chassisHalfW + 4 + rackTravelPx;
 
   // Lower balljoints / kingpin pivots inboard of tire centers
   const leftBalljointX = leftWheelX + 12;
   const rightBalljointX = rightWheelX - 12;
 
-  // Knuckle steering arms (rear-steer): Ackermann % shifts resting tie-rod pickup angle inward
-  const ackermannArmOffset = (tune.ackermannPct / 100) * 5;
-  const leftArmLocalX = 8 - ackermannArmOffset;
-  const leftArmLocalY = 20;
+  // Shortened knuckle steering arms (98mm rear-steer): prevents over-center toggle past 65 deg lock
+  const ackermannArmOffset = (tune.ackermannPct / 100) * 4;
+  const leftArmLocalX = 6 - ackermannArmOffset;
+  const leftArmLocalY = 14;
   const leftTieArmX =
     leftBalljointX + leftArmLocalX * Math.cos(innerRad) - leftArmLocalY * Math.sin(innerRad);
   const leftTieArmY =
     axleY + leftArmLocalX * Math.sin(innerRad) + leftArmLocalY * Math.cos(innerRad);
 
-  const rightArmLocalX = -8 + ackermannArmOffset;
-  const rightArmLocalY = 20;
+  const rightArmLocalX = -6 + ackermannArmOffset;
+  const rightArmLocalY = 14;
   const rightTieArmX =
     rightBalljointX + rightArmLocalX * Math.cos(outerRad) - rightArmLocalY * Math.sin(outerRad);
   const rightTieArmY =
@@ -375,17 +375,17 @@ export const FrontGeometryWireframe: React.FC<FrontGeometryWireframeProps> = ({
             strokeLinecap="round"
           />
 
-          {/* Left Lower A-Arm */}
-          <polygon
-            points={`${220 - chassisHalfW},${axleY - 12} ${220 - chassisHalfW},${axleY + 20} ${leftBalljointX},${axleY}`}
+          {/* Left High-Clearance Swept Lower A-Arm */}
+          <path
+            d={`M ${220 - chassisHalfW} ${axleY - 12} Q ${(220 - chassisHalfW + leftBalljointX) * 0.5} ${axleY - 2} ${leftBalljointX} ${axleY} L ${220 - chassisHalfW} ${axleY + 20} Z`}
             fill="#94A3B8"
             fillOpacity="0.08"
             stroke="#94A3B8"
             strokeWidth="1.6"
           />
-          {/* Right Lower A-Arm */}
-          <polygon
-            points={`${220 + chassisHalfW},${axleY - 12} ${220 + chassisHalfW},${axleY + 20} ${rightBalljointX},${axleY}`}
+          {/* Right High-Clearance Swept Lower A-Arm */}
+          <path
+            d={`M ${220 + chassisHalfW} ${axleY - 12} Q ${(220 + chassisHalfW + rightBalljointX) * 0.5} ${axleY - 2} ${rightBalljointX} ${axleY} L ${220 + chassisHalfW} ${axleY + 20} Z`}
             fill="#94A3B8"
             fillOpacity="0.08"
             stroke="#94A3B8"

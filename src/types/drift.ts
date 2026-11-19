@@ -133,7 +133,7 @@ export interface TelemetrySample {
 export interface ModFileSpec {
   filename: string;
   relativePath: string;
-  language: 'json' | 'lua';
+  language: 'json' | 'lua' | 'xml';
   summary: string;
   content: string;
 }

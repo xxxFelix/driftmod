@@ -3,6 +3,7 @@ import { CHASSIS_PRESETS, TRACK_PRESETS } from './data/presets';
 import { FrontGeometryWireframe } from './components/FrontGeometryWireframe';
 import { Header } from './components/Header';
 import { ModExportView } from './components/ModExportView';
+import { SuspensionMeshPreview } from './components/SuspensionMeshPreview';
 import { TelemetryCurves } from './components/TelemetryCurves';
 import { TrackCanvas } from './components/TrackCanvas';
 import { TuneAdvisorToast } from './components/TuneAdvisorToast';
@@ -36,6 +37,9 @@ export function App() {
   );
   const [advisorTip, setAdvisorTip] = useState<TuneAdjustmentTip | null>(null);
   const [isTipHovered, setIsTipHovered] = useState(false);
+  const [setupPreviewMode, setSetupPreviewMode] = useState<'mesh3d' | 'wireframe2d'>(
+    'mesh3d'
+  );
 
   const baselineRef = useRef<DriftTuneParams>({
     ...CHASSIS_PRESETS[0].defaultTune,
@@ -207,7 +211,36 @@ export function App() {
               />
             </div>
             <div className="space-y-6 lg:col-span-5 lg:sticky lg:top-20 lg:self-start">
-              <FrontGeometryWireframe chassis={chassis} tune={tune} />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSetupPreviewMode('mesh3d')}
+                  className={`rounded-md border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                    setupPreviewMode === 'mesh3d'
+                      ? 'border-orange-500 bg-orange-500/15 text-orange-300'
+                      : 'border-[#232834] bg-[#13161D] text-[#9AA4B2] hover:text-[#F4F6F8]'
+                  }`}
+                >
+                  3D Suspension Meshes (.dae)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSetupPreviewMode('wireframe2d')}
+                  className={`rounded-md border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                    setupPreviewMode === 'wireframe2d'
+                      ? 'border-orange-500 bg-orange-500/15 text-orange-300'
+                      : 'border-[#232834] bg-[#13161D] text-[#9AA4B2] hover:text-[#F4F6F8]'
+                  }`}
+                >
+                  2D CAD Kinematics
+                </button>
+              </div>
+
+              {setupPreviewMode === 'mesh3d' ? (
+                <SuspensionMeshPreview chassis={chassis} tune={tune} />
+              ) : (
+                <FrontGeometryWireframe chassis={chassis} tune={tune} />
+              )}
 
               <div className="space-y-4 rounded-lg border border-[#232834] bg-[#13161D] p-5">
                 <h2 className="font-display text-xl font-bold tracking-tight text-[#F4F6F8]">

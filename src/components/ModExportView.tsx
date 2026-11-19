@@ -171,11 +171,12 @@ export const ModExportView: React.FC<ModExportViewProps> = ({
             </code>
             <p className="mt-2.5 leading-relaxed text-[#9AA4B2]">
               Spawn your {chassis.name}, open{' '}
-              <span className="font-mono text-[#F4F6F8]">Ctrl+W → Parts</span>, and pick{' '}
-              <span className="text-orange-300">DriftMod Front Drift Suspension</span> &amp;{' '}
-              <span className="text-orange-300">DriftMod Rear Drift Suspension</span>. Adjust{' '}
-              <span className="font-mono text-[#F4F6F8]">900° FFB</span> &amp; coilover sliders under{' '}
-              <span className="font-mono text-[#F4F6F8]">Tuning</span>.
+              <span className="font-mono text-[#F4F6F8]">Ctrl+W → Parts</span>, pick{' '}
+              <span className="text-orange-300">DriftMod Double Wishbone Front Suspension</span>{' '}
+              (with selectable <span className="text-[#F4F6F8]">Front Subframe</span>,{' '}
+              <span className="text-[#F4F6F8]">Steering Rack</span>, and{' '}
+              <span className="text-[#F4F6F8]">Front Coilovers</span>) plus{' '}
+              <span className="text-orange-300">DriftMod Anti-Squat Multi-Link Rear Suspension</span>.
             </p>
           </div>
         </div>

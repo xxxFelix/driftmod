@@ -1,289 +1,34 @@
 import { ChassisPreset, DriftTuneParams, ModFileSpec } from '../types/drift';
+import { buildDoubleWishboneJbeamFiles } from './doubleWishboneJbeam';
+import {
+  buildSuspensionMeshScene,
+  generateBeamNGMaterialsJson,
+  serializeSuspensionColladaDae,
+} from './suspensionMeshGenerator';
 
 export function generateBeamNGModFiles(
   chassis: ChassisPreset,
   tune: DriftTuneParams
 ): ModFileSpec[] {
   const id = chassis.beamngInternalId;
+  const jbeamFiles = buildDoubleWishboneJbeamFiles(chassis, tune);
+  const meshParts = buildSuspensionMeshScene(chassis, tune);
+  const daeXml = serializeSuspensionColladaDae(meshParts);
+  const materialsJson = generateBeamNGMaterialsJson();
 
   const frontSpringNm = Math.round(tune.frontSpringKn * 1000);
   const rearSpringNm = Math.round(tune.rearSpringKn * 1000);
-  const frontBumpDamp = Math.round(tune.frontSpringKn * 58);
-  const frontReboundDamp = Math.round(tune.frontSpringKn * 112);
-  const rearBumpDamp = Math.round(tune.rearSpringKn * 52);
-  const rearReboundDamp = Math.round(tune.rearSpringKn * 98);
-  const wheelHalfLock = Math.round(tune.steeringWheelDeg / 2);
-
-  const controllerPayload = {
-    steerLockDeg: '$dm_steer_lock',
-    steerSpeed: '$dm_steer_speed',
-    steerWheelDeg: '$dm_wheel_deg',
-    ffbStrengthPct: '$dm_ffb_gain',
-    ffbDampingPct: '$dm_ffb_damp',
-    ackermannPct: tune.ackermannPct,
-    kpiDeg: Number(tune.kpiDeg.toFixed(1)),
-    casterDeg: Number(tune.frontCasterDeg.toFixed(1)),
-    camberF: Number(tune.frontCamberDeg.toFixed(1)),
-    camberR: Number(tune.rearCamberDeg.toFixed(1)),
-    toeF: Number(tune.frontToeDeg.toFixed(2)),
-    toeR: Number(tune.rearToeDeg.toFixed(2)),
-    springF: '$dm_spring_F',
-    springR: '$dm_spring_R',
-    dampBumpF: frontBumpDamp,
-    dampReboundF: frontReboundDamp,
-    dampBumpR: rearBumpDamp,
-    dampReboundR: rearReboundDamp,
-    arbBiasR: '$dm_arb_bias_R',
-    antiSquatPct: tune.antiSquatPct,
-    frontWeightPct: Number(tune.frontWeightPct.toFixed(1)),
-    cageRigidity: '$dm_cage_rigidity',
-    rearTireWidthMm: tune.rearTireWidthMm,
-    rearTirePsi: '$dm_rear_psi',
-    rearTireGrip: Number(tune.rearTireGrip.toFixed(2)),
-    brakeBiasPct: '$dm_brake_bias',
-    lsdLockPct: '$dm_lsd_lock',
-    finalDriveRatio: '$dm_final_drive',
-    turboBoostPsi: '$dm_boost_psi',
-  };
 
   // Startup script executed automatically by BeamNG when zip is dropped into mods/
   const modScriptLua = `-- DriftMod Startup Loader (auto-executed by BeamNG.drive from mods/*.zip)
-setExtensionUnloadMode("driftmodBuilder", "manual")
-extensions.load("driftmodBuilder")
-
 setExtensionUnloadMode("driftmodScoring", "manual")
 extensions.load("driftmodScoring")
 `;
 
-  // Game-Engine extension that clones the user's exact BeamNG 0.3x stock/drift
-  // front & rear suspension parts (nodes, slots, slots2, flexbodies, hubs, wheels)
-  // and registers DriftMod Front & Rear Drift Suspension cleanly under Parts.
-  const driftmodBuilderLua = `-- DriftMod Native Suspension Sub-Assembly Builder for BeamNG.drive
--- Clones the player's installed stock/drift *_suspension_F & *_suspension_R JBeam parts
--- so Front Suspension & Rear Suspension appear natively in Vehicle Config with 100%
--- intact nodes, wheels, hubs, coilovers, brakes, and 3D meshes across all 0.3x patches.
-
-local M = {}
-
-local TARGET_VEHICLES = { "${id}", "bx", "etkc", "sunburst", "sunburst2", "bastion", "fullsize" }
-local BUILT_FLAG = {}
-
-local DRIFTMOD_VARS_F = {
-  { "$dm_steer_lock", "range", "deg", "DriftMod Steering & FFB", ${tune.steeringLockDeg}, 40, 72, "Max Steering Lock", "Scales steering rack hydro travel limit" },
-  { "$dm_steer_speed", "range", "x", "DriftMod Steering & FFB", ${tune.steeringSpeed.toFixed(2)}, 0.60, 1.80, "Rack Speed Multiplier", "Countersteer hydro in/out rate multiplier" },
-  { "$dm_wheel_deg", "range", "deg", "DriftMod Steering & FFB", ${tune.steeringWheelDeg}, 540, 1080, "FFB Wheel Rotation", "Physical steering wheel lock-to-lock (900 for DD/belt)" },
-  { "$dm_ffb_gain", "range", "%", "DriftMod Steering & FFB", ${tune.ffbStrengthPct}, 60, 160, "FFB Self-Steer Gain", "Self-aligning torque strength on wheel release" },
-  { "$dm_ffb_damp", "range", "%", "DriftMod Steering & FFB", ${tune.ffbDampingPct}, 0, 60, "Steering Rack Damping", "Smooths high-frequency DD wheel oscillation" },
-  { "$dm_spring_F", "range", "N/m", "DriftMod Coilovers", ${frontSpringNm}, 35000, 110000, "Front Spring Rate", "Front coilover spring stiffness" },
-  { "$dm_cage_rigidity", "range", "x", "DriftMod Chassis", ${tune.chassisRigidity.toFixed(2)}, 0.80, 1.50, "Chromoly Cage Rigidity", "Scales chassis torsional beam stiffness" },
-  { "$dm_brake_bias", "range", "%", "DriftMod Brakes", ${tune.brakeBiasPct}, 50, 75, "Front Brake Bias", "Dual-master split for mid-drift left-foot braking" }
-}
-
-local DRIFTMOD_VARS_R = {
-  { "$dm_spring_R", "range", "N/m", "DriftMod Coilovers", ${rearSpringNm}, 25000, 90000, "Rear Spring Rate", "Rear coilover spring stiffness" },
-  { "$dm_arb_bias_R", "range", "%", "DriftMod Suspension", ${tune.rearArbBiasPct}, 20, 80, "Rear ARB Bias", "Front vs rear anti-roll bar roll stiffness split" },
-  { "$dm_rear_psi", "range", "PSI", "DriftMod Tires", ${tune.rearTirePsi}, 12, 42, "Rear Tire Pressure", "Sets rear pressureWheels air pressure" },
-  { "$dm_lsd_lock", "range", "%", "DriftMod Drivetrain", ${tune.lsdLockPct}, 0, 100, "Rear LSD / Spool Lock", "Applies clutch lockup or welded spool to rear diff" },
-  { "$dm_final_drive", "range", ":1", "DriftMod Drivetrain", ${tune.finalDriveRatio.toFixed(2)}, 3.10, 4.90, "Final Drive Ratio", "Sets rear differential final drive gear ratio" },
-  { "$dm_boost_psi", "range", "PSI", "DriftMod Drivetrain", ${tune.turboBoostPsi}, 0, 28, "Target Turbo Boost", "Adjusts turbo wastegate target PSI when turbo is fitted" }
-}
-
-local CONTROLLER_CFG = ${JSON.stringify(controllerPayload)}
-
-local function deepCopy(orig)
-  if type(orig) ~= "table" then return orig end
-  local copy = {}
-  for k, v in pairs(orig) do
-    copy[deepCopy(k)] = deepCopy(v)
-  end
-  return copy
-end
-
-local function appendVars(part, rows)
-  if type(part.variables) ~= "table" or #part.variables == 0 then
-    part.variables = {
-      { "name", "type", "unit", "category", "default", "min", "max", "title", "description" }
-    }
-  end
-  local existing = {}
-  for i = 2, #part.variables do
-    if type(part.variables[i]) == "table" and part.variables[i][1] then
-      existing[part.variables[i][1]] = true
-    end
-  end
-  for _, row in ipairs(rows) do
-    if not existing[row[1]] then
-      table.insert(part.variables, deepCopy(row))
-    end
-  end
-end
-
-local function injectController(part)
-  if type(part.controller) ~= "table" or #part.controller == 0 then
-    part.controller = { { "fileName" } }
-  end
-  for i = 2, #part.controller do
-    if type(part.controller[i]) == "table" and part.controller[i][1] == "driftmod" then
-      part.controller[i][2] = deepCopy(CONTROLLER_CFG)
-      return
-    end
-  end
-  table.insert(part.controller, { "driftmod", deepCopy(CONTROLLER_CFG) })
-end
-
-local function scoreCandidate(partName, part, targetSlot)
-  if type(part) ~= "table" or part.slotType ~= targetSlot then return -1 end
-  if string.find(partName, "driftmod", 1, true) then return -1 end
-  local lower = string.lower(partName)
-  if string.find(lower, "drift", 1, true) then return 100 end
-  if string.find(lower, "race", 1, true) then return 80 end
-  if string.find(lower, "sport", 1, true) then return 60 end
-  if partName == targetSlot then return 50 end
-  return 20
-end
-
-local function buildForVehicle(vehName)
-  if not FS or not FS:directoryExists("/vehicles/" .. vehName) then
-    return false
-  end
-
-  local files = FS:findFiles("/vehicles/" .. vehName, "*suspension*.jbeam", -1, true, false)
-  if not files or #files == 0 then return false end
-
-  local bestFScore, bestFPart = -1, nil
-  local bestRScore, bestRPart = -1, nil
-  local slotF = vehName .. "_suspension_F"
-  local slotR = vehName .. "_suspension_R"
-
-  for _, fpath in ipairs(files) do
-    if not string.find(fpath, "driftmod", 1, true) then
-      local ok, data = pcall(jsonReadFile, fpath)
-      if ok and type(data) == "table" then
-        for partName, part in pairs(data) do
-          local sf = scoreCandidate(partName, part, slotF)
-          if sf > bestFScore then
-            bestFScore = sf
-            bestFPart = part
-          end
-          local sr = scoreCandidate(partName, part, slotR)
-          if sr > bestRScore then
-            bestRScore = sr
-            bestRPart = part
-          end
-        end
-      end
-    end
-  end
-
-  if not bestFPart and not bestRPart then return false end
-
-  local outTbl = {}
-  if bestFPart then
-    local clonedF = deepCopy(bestFPart)
-    clonedF.slotType = slotF
-    clonedF.information = clonedF.information or {}
-    clonedF.information.authors = "DriftMod Workbench"
-    clonedF.information.name = "DriftMod ${tune.steeringLockDeg}deg Front Drift Suspension (${tune.kpiDeg.toFixed(1)} KPI / ${tune.steeringWheelDeg} FFB)"
-    if type(clonedF.hydros) == "table" then
-      for _, row in ipairs(clonedF.hydros) do
-        if type(row) == "table" and row.factor ~= nil then
-          row.steeringWheelLock = ${wheelHalfLock}
-        end
-      end
-    end
-    appendVars(clonedF, DRIFTMOD_VARS_F)
-    injectController(clonedF)
-    outTbl[vehName .. "_driftmod_suspension_F"] = clonedF
-  end
-
-  if bestRPart then
-    local clonedR = deepCopy(bestRPart)
-    clonedR.slotType = slotR
-    clonedR.information = clonedR.information or {}
-    clonedR.information.authors = "DriftMod Workbench"
-    clonedR.information.name = "DriftMod Rear Drift Suspension (${tune.rearSpringKn} kN/m / ${tune.antiSquatPct}% Anti-Squat)"
-    appendVars(clonedR, DRIFTMOD_VARS_R)
-    injectController(clonedR)
-    outTbl[vehName .. "_driftmod_suspension_R"] = clonedR
-  end
-
-  local outPath = "/vehicles/" .. vehName .. "/driftmod/" .. vehName .. "_driftmod_suspension_generated.jbeam"
-  local okWrite = pcall(jsonWriteFile, outPath, outTbl, true)
-  if okWrite then
-    BUILT_FLAG[vehName] = true
-  end
-  return okWrite
-end
-
-local function buildAll()
-  local seen = {}
-  for _, vehName in ipairs(TARGET_VEHICLES) do
-    if not seen[vehName] then
-      seen[vehName] = true
-      buildForVehicle(vehName)
-    end
-  end
-end
-
-local function onExtensionLoaded()
-  buildAll()
-end
-
-local function onVehicleSpawned(vehId)
-  local veh = be and be:getObjectByID(vehId)
-  if not veh or not veh.getJBeamFilename then return end
-  local vehName = veh:getJBeamFilename()
-  if vehName and not BUILT_FLAG[vehName] then
-    if buildForVehicle(vehName) and extensions and extensions.core_vehicles and extensions.core_vehicles.reloadVehicle then
-      pcall(extensions.core_vehicles.reloadVehicle, 0)
-    end
-  end
-end
-
-M.onExtensionLoaded = onExtensionLoaded
-M.onVehicleSpawned = onVehicleSpawned
-M.rebuild = buildAll
-return M
-`;
-
-  // Fallback Additional Modification JBeam part (`${id}_mod`) so users can also
-  // apply DriftMod on top of any third-party or custom suspension setup.
-  const driftModKitJbeam = `{
-  "${id}_driftmod_kit": {
-    "information": {
-      "authors": "DriftMod Workbench",
-      "name": "DriftMod ${tune.steeringLockDeg}° / ${tune.steeringWheelDeg}° FFB Package (Additional Mod)",
-      "value": 4500
-    },
-    "slotType": "${id}_mod",
-    "variables": [
-      ["name", "type", "unit", "category", "default", "min", "max", "title", "description"],
-      ["$dm_steer_lock", "range", "deg", "DriftMod Steering & FFB", ${tune.steeringLockDeg}, 40, 72, "Max Steering Lock", "Scales steering rack hydro travel limit without breaking suspension geometry"],
-      ["$dm_steer_speed", "range", "x", "DriftMod Steering & FFB", ${tune.steeringSpeed.toFixed(2)}, 0.60, 1.80, "Rack Speed Multiplier", "Countersteer hydro in/out rate multiplier"],
-      ["$dm_wheel_deg", "range", "deg", "DriftMod Steering & FFB", ${tune.steeringWheelDeg}, 540, 1080, "FFB Wheel Rotation", "Physical steering wheel lock-to-lock (900 for DD/belt wheels)"],
-      ["$dm_ffb_gain", "range", "%", "DriftMod Steering & FFB", ${tune.ffbStrengthPct}, 60, 160, "FFB Self-Steer Gain", "Self-aligning torque strength on wheel release"],
-      ["$dm_ffb_damp", "range", "%", "DriftMod Steering & FFB", ${tune.ffbDampingPct}, 0, 60, "Steering Rack Damping", "Smooths high-frequency DD oscillation"],
-      ["$dm_spring_F", "range", "N/m", "DriftMod Coilovers", ${frontSpringNm}, 35000, 110000, "Front Spring Rate", "Applied live to installed front coilover/strut beams"],
-      ["$dm_spring_R", "range", "N/m", "DriftMod Coilovers", ${rearSpringNm}, 25000, 90000, "Rear Spring Rate", "Applied live to installed rear coilover/spring beams"],
-      ["$dm_arb_bias_R", "range", "%", "DriftMod Suspension", ${tune.rearArbBiasPct}, 20, 80, "Rear ARB Bias", "Balances front vs rear anti-roll bar beam stiffness"],
-      ["$dm_cage_rigidity", "range", "x", "DriftMod Chassis", ${tune.chassisRigidity.toFixed(2)}, 0.80, 1.50, "Chromoly Cage Rigidity", "Scales chassis/body torsional beam stiffness"],
-      ["$dm_rear_psi", "range", "PSI", "DriftMod Tires & Brakes", ${tune.rearTirePsi}, 12, 42, "Rear Tire Pressure", "Sets rear tire air pressure on pressureWheels"],
-      ["$dm_brake_bias", "range", "%", "DriftMod Tires & Brakes", ${tune.brakeBiasPct}, 50, 75, "Front Brake Bias", "Dual-master front/rear brake torque split"],
-      ["$dm_lsd_lock", "range", "%", "DriftMod Drivetrain", ${tune.lsdLockPct}, 0, 100, "Rear LSD / Spool Lock", "Applies clutch lockup or welded spool to rear diff"],
-      ["$dm_final_drive", "range", ":1", "DriftMod Drivetrain", ${tune.finalDriveRatio.toFixed(2)}, 3.10, 4.90, "Final Drive Ratio", "Sets rear differential / final drive gear ratio"],
-      ["$dm_boost_psi", "range", "PSI", "DriftMod Drivetrain", ${tune.turboBoostPsi}, 0, 28, "Target Turbo Boost", "Adjusts turbo wastegate target PSI when turbo is fitted"]
-    ],
-    "controller": [
-      ["fileName"],
-      ["driftmod", ${JSON.stringify(controllerPayload)}]
-    ]
-  }
-}`;
-
-  // Vehicle-side Lua controller (`lua/vehicle/controller/driftmod.lua`) calibrated for
-  // real BeamNG suspension physics and crisp 900-degree DD / belt wheel FFB self-steer.
+  // Vehicle-side Lua controller (`lua/vehicle/controller/driftmod.lua`) loaded by
+  // DriftMod Double Wishbone Front Suspension to apply live Tuning sliders & 900deg FFB.
   const driftmodVehicleLua = `-- DriftMod Runtime Vehicle & 900deg FFB Controller for BeamNG.drive
--- Loaded by DriftMod Front/Rear Drift Suspension OR Additional Modification (${id}_mod)
+-- Loaded by ${id}_driftmod_dw_suspension_F
 
 local M = {}
 
@@ -384,6 +129,7 @@ local function captureBaselines()
     for idx, h in pairs(hydros.hydros) do
       if h.inputSource == "steering_input" then
         baseHydros[idx] = {
+          factor = type(h.factor) == "number" and h.factor or nil,
           inLimit = h.inLimit or 1,
           outLimit = h.outLimit or 1,
           inRate = h.inRate or 1,
@@ -429,7 +175,6 @@ local function applyDriftModTune()
   local ffbDampPct = clamp(tonumber(cfg.ffbDampingPct) or ${tune.ffbDampingPct}, 0, 60)
   local rackDampScale = clamp(0.68 + (ffbDampPct / 60) * 0.82, 0.65, 1.50)
 
-  -- 1. Apply coilover springs/dampers, ARB balance, steering damper & cage rigidity
   if obj and obj.setBeamSpringDamp then
     for cid, base in pairs(baseBeams) do
       local origin = base.partOrigin
@@ -441,25 +186,21 @@ local function applyDriftModTune()
       local isBounded = base.beamType == BEAM_BOUNDED or base.beamType == "|BOUNDED"
 
       if isSpringOrStrut and isBounded then
-        if base.spring >= 8000 and base.spring <= 350000 then
+        if base.spring >= 8000 and base.spring <= 650000 then
+          local isDriftMod = strContains(origin, "driftmod")
           if base.isFront then
-            pcall(obj.setBeamSpringDamp, obj, cid, springF, dampBumpF, springF, dampReboundF)
+            local mrF = isDriftMod and 4.16 or 1.0
+            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springF * mrF), math.floor(dampBumpF * mrF), math.floor(springF * mrF), math.floor(dampReboundF * mrF))
           else
-            pcall(obj.setBeamSpringDamp, obj, cid, springR, dampBumpR, springR, dampReboundR)
-          end
-        elseif base.spring < 1000 and (base.damp >= 400 or base.dampRebound >= 400) then
-          if base.isFront then
-            pcall(obj.setBeamSpringDamp, obj, cid, base.spring, dampBumpF, base.spring, dampReboundF)
-          else
-            pcall(obj.setBeamSpringDamp, obj, cid, base.spring, dampBumpR, base.spring, dampReboundR)
+            local mrR = isDriftMod and 3.75 or 1.0
+            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springR * mrR), math.floor(dampBumpR * mrR), math.floor(springR * mrR), math.floor(dampReboundR * mrR))
           end
         end
       elseif (strContains(origin, "swaybar") or strContains(origin, "antiroll")) and base.spring >= 2000 and base.spring <= 350000 then
         local scale = base.isFront and frontArbScale or rearArbScale
         local newSpring = math.floor(base.spring * scale)
         pcall(obj.setBeamSpringDamp, obj, cid, newSpring, base.damp, newSpring, base.dampRebound)
-      elseif strContains(origin, "steering") and base.damp >= 40 and base.damp <= 6000 and base.spring <= 250000 then
-        -- Smooth high-frequency DD wheel oscillation directly on steering rack damper beams
+      elseif strContains(origin, "steering") and base.damp >= 20 and base.damp <= 6000 and base.spring <= 250000 then
         local newDamp = math.floor(base.damp * rackDampScale)
         pcall(obj.setBeamSpringDamp, obj, cid, base.spring, newDamp, base.spring, newDamp)
       elseif (strContains(origin, "body") or strContains(origin, "rollcage") or strContains(origin, "frame")) and base.spring >= 250000 and base.spring <= 12000000 and cageScale ~= 1.0 then
@@ -469,13 +210,14 @@ local function applyDriftModTune()
     end
   end
 
-  -- 2. Calibrate steering hydro travel, 900deg wheel lock, fast DD rack rate & FFB SAT gain
-  local lockDeg = tonumber(cfg.steerLockDeg) or ${tune.steeringLockDeg}
+  local baseLockDeg = ${tune.steeringLockDeg}
+  local lockDeg = tonumber(cfg.steerLockDeg) or baseLockDeg
   local steerSpeed = clamp(tonumber(cfg.steerSpeed) or ${tune.steeringSpeed.toFixed(2)}, 0.6, 1.8)
   local wheelDeg = clamp(tonumber(cfg.steerWheelDeg) or ${tune.steeringWheelDeg}, 540, 1080)
   local casterDeg = clamp(tonumber(cfg.casterDeg) or ${tune.frontCasterDeg.toFixed(1)}, 3.0, 10.5)
   local ffbGainPct = clamp(tonumber(cfg.ffbStrengthPct) or ${tune.ffbStrengthPct}, 60, 160)
-  local lockScale = clamp(lockDeg / 48, 0.88, 1.28)
+  -- Scale relative to baked JBeam lock angle so default stays exactly 1.0
+  local lockScale = clamp(lockDeg / math.max(40, baseLockDeg), 0.65, 1.30)
   local ffbScale = clamp((ffbGainPct / 100) * (0.88 + (casterDeg - 5.0) * 0.032), 0.55, 1.65)
 
   if hydros then
@@ -486,6 +228,9 @@ local function applyDriftModTune()
       for idx, baseH in pairs(baseHydros) do
         local h = hydros.hydros[idx]
         if h then
+          if baseH.factor and type(h.factor) == "number" then
+            h.factor = baseH.factor * lockScale
+          end
           if h.inLimit then
             local delta = (baseH.inLimit - 1) * lockScale
             h.inLimit = 1 + delta
@@ -494,9 +239,8 @@ local function applyDriftModTune()
             local delta = (baseH.outLimit - 1) * lockScale
             h.outLimit = 1 + delta
           end
-          -- Keep hydraulic rate high (>= 3.6) so 900deg DD self-steer never lags behind wheel release
-          if h.inRate then h.inRate = math.max(baseH.inRate * steerSpeed, 3.6 * steerSpeed) end
-          if h.outRate then h.outRate = math.max(baseH.outRate * steerSpeed, 3.6 * steerSpeed) end
+          if h.inRate then h.inRate = math.max(baseH.inRate * steerSpeed, 3.8 * steerSpeed) end
+          if h.outRate then h.outRate = math.max(baseH.outRate * steerSpeed, 3.8 * steerSpeed) end
           if type(h.steeringWheelLock) == "number" then
             h.steeringWheelLock = wheelDeg * 0.5
           end
@@ -511,7 +255,6 @@ local function applyDriftModTune()
     end
   end
 
-  -- 3. Apply dual-master front/rear brake bias & rear tire PSI
   local brakeBiasF = clamp(tonumber(cfg.brakeBiasPct) or ${tune.brakeBiasPct}, 50, 75) / 100
   local rearPsi = clamp(tonumber(cfg.rearTirePsi) or ${tune.rearTirePsi}, 12, 42)
   if wheels and wheels.wheels then
@@ -546,7 +289,6 @@ local function applyDriftModTune()
     end
   end
 
-  -- 4. Apply LSD lock rate / welded spool & final drive ratio via powertrain
   local lsdPct = clamp(tonumber(cfg.lsdLockPct) or ${tune.lsdLockPct}, 0, 100)
   local finalDrive = clamp(tonumber(cfg.finalDriveRatio) or ${tune.finalDriveRatio.toFixed(2)}, 3.1, 4.9)
   local boostPsi = clamp(tonumber(cfg.turboBoostPsi) or ${tune.turboBoostPsi}, 0, 28)
@@ -626,7 +368,10 @@ return M
       format: 2,
       model: id,
       parts: {
-        [`${id}_suspension_F`]: `${id}_driftmod_suspension_F`,
+        [`${id}_suspension_F`]: `${id}_driftmod_dw_suspension_F`,
+        [`${id}_driftmod_subframe_F`]: `${id}_driftmod_tubular_subframe_F`,
+        [`${id}_driftmod_steering_F`]: `${id}_driftmod_rack_F`,
+        [`${id}_driftmod_coilover_F`]: `${id}_driftmod_coilover_F`,
         [`${id}_suspension_R`]: `${id}_driftmod_suspension_R`,
       },
       vars: {
@@ -699,44 +444,45 @@ return M
 `;
 
   return [
+    ...jbeamFiles,
     {
-      filename: 'modScript.lua',
-      relativePath: 'scripts/driftmod/modScript.lua',
-      language: 'lua',
+      filename: 'driftmod_suspension.dae',
+      relativePath: `vehicles/${id}/driftmod/driftmod_suspension.dae`,
+      language: 'xml',
       summary:
-        'BeamNG mod startup hook automatically executed when dropping the .zip into mods/; loads suspension builder & drift scoring.',
-      content: modScriptLua,
+        '3D Collada (.dae) mesh geometry for Front Double Wishbones, Subframes, Drop Knuckles, Steering Rack, 2-Way Coilovers, Brakes & Rear Multi-Link.',
+      content: daeXml,
     },
     {
-      filename: 'driftmodBuilder.lua',
-      relativePath: 'lua/ge/extensions/driftmodBuilder.lua',
-      language: 'lua',
+      filename: 'main.materials.json',
+      relativePath: `vehicles/${id}/driftmod/main.materials.json`,
+      language: 'json',
       summary:
-        'Clones your installed stock/drift Front & Rear Suspension JBeam parts so DriftMod appears right under Front/Rear Suspension with intact hubs, wheels, brakes & 3D meshes.',
-      content: driftmodBuilderLua,
+        'BeamNG PBR material definitions (Chromoly Orange, CNC Billet Aluminum, Gunmetal Steel, Coil Yellow, Brake Caliper Red).',
+      content: materialsJson,
     },
     {
       filename: 'driftmod.lua',
       relativePath: 'lua/vehicle/controller/driftmod.lua',
       language: 'lua',
       summary:
-        'BeamNG vehicle controller applying coilover springs/dampers, ARB balance, 900° FFB SAT gain, steering rack damping, rear PSI, brake bias & LSD.',
+        'BeamNG vehicle controller applying live Tuning sliders, 900° FFB SAT gain, rack damping, rear PSI, brake bias & LSD.',
       content: driftmodVehicleLua,
     },
     {
-      filename: `${id}_driftmod_kit.jbeam`,
-      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_kit.jbeam`,
-      language: 'json',
+      filename: 'modScript.lua',
+      relativePath: 'scripts/driftmod/modScript.lua',
+      language: 'lua',
       summary:
-        `Additional Modification (${id}_mod) fallback JBeam if applying DriftMod on top of another aftermarket suspension.`,
-      content: driftModKitJbeam,
+        'BeamNG mod startup hook automatically executed when dropping the .zip into mods/; loads live drift scoring.',
+      content: modScriptLua,
     },
     {
       filename: `driftmod_${id}_vars.json`,
       relativePath: `vehicles/${id}/driftmod/driftmod_${id}_vars.json`,
       language: 'json',
       summary:
-        'Saved DriftMod tuning variable preset reference (including 900° FFB wheel parameters).',
+        'Saved DriftMod tuning variable preset reference (Double Wishbone geometry & 900° FFB wheel parameters).',
       content: varsReference,
     },
     {
@@ -774,20 +520,25 @@ function crc32(bytes: Uint8Array): number {
 export function buildModZipBlob(files: ModFileSpec[], chassisName: string): Blob {
   const encoder = new TextEncoder();
   const readmeText = [
-    `# DriftMod Pack (${chassisName})`,
+    `# DriftMod Double Wishbone Pack (${chassisName})`,
     '',
     '1. Drop this .zip directly into your BeamNG mods folder (remove any older driftmod zip/folder first):',
     '   %localappdata%\\BeamNG.drive\\0.3x\\mods\\',
     '',
     '2. Enable the mod in BeamNG -> Repository -> Mods Manager if not auto-activated.',
     '',
-    '3. Spawn your 200BX (or supported chassis), open Vehicle Config (Ctrl+W) -> Parts:',
-    '   - Select "DriftMod Front Drift Suspension" under Front Suspension',
-    '   - Select "DriftMod Rear Drift Suspension" under Rear Suspension',
-    '   (Your wheels, hubs, brakes, coilovers, and 3D arms stay 100% intact.)',
+    '3. Spawn your vehicle, open Vehicle Config (Ctrl+W) -> Parts:',
+    '   - Front Suspension -> Select "DriftMod Double Wishbone Front Suspension"',
+    '     Sub-slots now appear underneath for:',
+    '       * Front Subframe (Chromoly Tubular or Gusseted Street)',
+    '       * Steering Rack (Quick-Ratio Drift Rack with Ackermann & 900deg FFB)',
+    '       * Front Coilovers (2-Way Drift Coilovers)',
+    '       * Front Sway Bar & Front Drop-Knuckle 5-Lug Hubs (with 5-lug wheels)',
+    '   - Rear Suspension -> Select "DriftMod Anti-Squat Multi-Link Rear Suspension"',
+    '     with Rear Subframe, Rear Coilovers, Rear Sway Bar, Rear 5-Lug Hubs & Rear Diff.',
     '',
     '4. Open Vehicle Config -> Tuning to fine-tune FFB Self-Steer Gain, Rack Damping,',
-    '   900deg Wheel Lock, Springs, ARB, Rear PSI, Brake Bias, LSD & Final Drive live.',
+    '   900deg Wheel Lock, Coilover Springs/Damping, Ride Height, Rear PSI, LSD & Final Drive.',
     '',
   ].join('\n');
 
