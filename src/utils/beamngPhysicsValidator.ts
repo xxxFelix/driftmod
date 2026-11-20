@@ -515,6 +515,15 @@ export function validateModPhysics(
   const allNodeIds = new Set([...sumSpring.keys(), ...nodes.keys()]);
   for (const nid of allNodeIds) {
     const info = nodes.get(nid);
+    // Hub/upright clusters are excluded: the stock bx hubs and uprights run 8.5-14 MN/m beams
+    // on 3.75-5.25 kg nodes, so the unibody stiffness heuristic does not apply to a wheel
+    // attachment or a rigid knuckle.
+    if (
+      info &&
+      info.groups.some((g) => g.startsWith('wheelhub_') || g.startsWith('driftmod_knuckle_'))
+    ) {
+      continue;
+    }
     const weight = info ? info.weightKg : ASSUMED_UNIBODY_NODE_WEIGHT_KG;
     const kTotal = sumSpring.get(nid) ?? 0;
     const cTotal = sumDamp.get(nid) ?? 0;

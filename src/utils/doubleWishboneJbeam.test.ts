@@ -125,7 +125,7 @@ function rotateAboutAxis(p: Vec3, origin: Vec3, axis: Vec3, angleRad: number): V
 test('all 5 generated JBeam files parse cleanly as valid JSON and expose selectable front/rear sub-slots', () => {
   const bx = CHASSIS_PRESETS[0];
   const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);
-  assert.equal(files.length, 6);
+  assert.equal(files.length, 5);
 
   const parsedParts: Record<string, Record<string, unknown>> = {};
   for (const f of files) {
@@ -146,9 +146,11 @@ test('all 5 generated JBeam files parse cleanly as valid JSON and expose selecta
   assert.ok(slotTypes.includes('bx_driftmod_coilover_F'));
   assert.ok(slotTypes.includes('bx_driftmod_swaybar_F'));
   assert.ok(slotTypes.includes('bx_driftmod_hub_F'));
-  assert.ok(slotTypes.includes('bx_driftmod_chassis_frame'));
+  // The bolt-in chassis frame used to ride along as a core slot here and folded the shell,
+  // so it must no longer be part of the front suspension tree.
+  assert.ok(!slotTypes.includes('bx_driftmod_chassis_frame'));
+  assert.ok(!parsedParts['bx_driftmod_chassis_frame']);
 
-  assert.ok(parsedParts['bx_driftmod_chassis_frame']);
   assert.ok(parsedParts['bx_driftmod_tubular_subframe_F']);
   assert.ok(parsedParts['bx_driftmod_street_subframe_F']);
   assert.ok(parsedParts['bx_driftmod_rack_F']);
@@ -683,40 +685,66 @@ test('real BeamNG v0.40 BX stock body & suspension JBeams pass full compatibilit
   assert.equal(report.overallStatus, 'pass');
 });
 
-test('chassis frame ties the front subframe, sills and rear subframe with balanced finite-strength beams', () => {
+
+test('hub clusters use stock wheelhub_* groups, hub physics and stock-strength knuckle attachment', () => {
   const bx = CHASSIS_PRESETS[0];
   const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);
   const parsed: Record<string, Record<string, unknown>> = {};
   for (const f of files) Object.assign(parsed, JSON.parse(f.content));
 
-  const frame = parsed['bx_driftmod_chassis_frame'];
-  assert.ok(frame, 'bx_driftmod_chassis_frame part must exist');
+  const hubGroups: [string, string[]][] = [
+    ['bx_driftmod_hub_F', ['wheelhub_FR', 'wheelhub_FL']],
+    ['bx_driftmod_hub_R', ['wheelhub_RR', 'wheelhub_RL']],
+  ];
 
-  const frameNodes = extractNodesMap(frame);
-  for (const nid of ['cfb1r', 'cfb1l', 'cfb2r', 'cfb2l', 'cfb4r', 'cfb4l', 'cft1r', 'cft1l', 'cft3r', 'cft3l']) {
-    assert.ok(frameNodes.has(nid), `frame node ${nid} missing`);
+  for (const [partName, groups] of hubGroups) {
+    const hub = parsed[partName];
+    assert.ok(hub, `${partName} must exist`);
+
+    // Nodes must sit in the stock wheelhub_* groups, otherwise the rim mesh and hub cluster
+    // have nothing to bind to (symptom: tires render, rims do not).
+    const nodeGroups = new Set<string>();
+    for (const row of hub.nodes as unknown[]) {
+      if (Array.isArray(row)) continue;
+      const g = (row as { group?: string | string[] }).group;
+      if (typeof g === 'string' && g) nodeGroups.add(g);
+      if (Array.isArray(g)) g.forEach((x) => nodeGroups.add(x));
+    }
+    for (const g of groups) {
+      assert.ok(nodeGroups.has(g), `${partName} must place its hub nodes in group ${g}`);
+    }
+
+    // The hub pressure-wheel cluster (hubRadius / wheelOffset / numRays) must exist as on stock
+    const pw = (hub.pressureWheels as unknown[][]) ?? [];
+    assert.ok(
+      pw.some((r) => !Array.isArray(r) && typeof r === 'object' && r !== null && 'hubRadius' in r),
+      `${partName} must define the hub pressureWheels cluster`
+    );
+
+    // Knuckle->hub beams must carry stock stiffness: the old 1.35 MN/m budget let the wheel
+    // fold under the car and snap off at speed.
+    const hubBeams = (hub.beams as unknown[][]).filter(
+      (r) => Array.isArray(r) && typeof r[0] === 'string' && typeof r[1] === 'string'
+    );
+    assert.ok(hubBeams.length >= 8, `${partName} must attach both hub faces to the knuckle`);
+    let strongest = 0;
+    for (const row of hubBeams) {
+      const opts = (row[2] as { beamSpring?: number } | undefined) ?? {};
+      strongest = Math.max(strongest, opts.beamSpring ?? 8501000);
+    }
+    assert.ok(strongest >= 8500000, `${partName} hub attachment must be >= 8.5 MN/m, got ${strongest}`);
   }
 
-  const beams = (frame.beams as unknown[][]).filter(
-    (r) => Array.isArray(r) && typeof r[0] === 'string' && r[0] !== 'id1:'
+  // Rear wheels must couple to the differential's virtual node, never to a suspension node
+  const wheeldataR = parsed['bx_driftmod_wheeldata_R'];
+  const wheelRows = (wheeldataR.pressureWheels as unknown[][]).filter(
+    (r) => Array.isArray(r) && typeof r[0] === 'string' && r[0] !== 'name'
   );
-  assert.ok(beams.length >= 30, `frame must triangulate the cabin, got ${beams.length} beams`);
-  assert.ok(
-    !JSON.stringify(frame).includes('FLT_MAX'),
-    'frame beams must use finite strength so a heavy impact bends the frame instead of folding the body'
-  );
-  assert.ok(
-    beams.some((r) => r.includes('fx1r') || r.includes('fx2r')),
-    'frame must bolt to the front subframe'
-  );
-  assert.ok(
-    beams.some((r) => r.includes('rx1r') || r.includes('rx2r')),
-    'frame must bolt to the rear subframe'
-  );
-
-  const frontSusp = parsed['bx_driftmod_dw_suspension_F'];
-  const slot = (frontSusp.slots2 as unknown[][]).find((r) => r[0] === 'bx_driftmod_chassis_frame');
-  assert.ok(slot && slot[3] === 'bx_driftmod_chassis_frame', 'frame must be the default chassis-frame part');
+  assert.ok(wheelRows.length >= 2, 'rear wheeldata must define both wheels');
+  for (const row of wheelRows) {
+    const opts = row[8] as Record<string, string> | undefined;
+    assert.equal(opts?.['torqueCoupling:'], 'rdiff', 'rear wheel torqueCoupling must use rdiff');
+  }
 
   const report = validateModPhysics(files, bx, bx.defaultTune);
   assert.equal(report.overallStatus, 'pass');
