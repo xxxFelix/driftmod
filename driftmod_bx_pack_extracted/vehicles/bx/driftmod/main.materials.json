@@ -1,0 +1,128 @@
+{
+  "dm_chromoly_orange": {
+    "name": "dm_chromoly_orange",
+    "mapTo": "dm_chromoly_orange",
+    "class": "Material",
+    "version": 1.5,
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.976,
+          0.451,
+          0.086,
+          1
+        ],
+        "metallicFactor": 0.35,
+        "roughnessFactor": 0.32
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "dm_billet_alu": {
+    "name": "dm_billet_alu",
+    "mapTo": "dm_billet_alu",
+    "class": "Material",
+    "version": 1.5,
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.796,
+          0.835,
+          0.882,
+          1
+        ],
+        "metallicFactor": 0.88,
+        "roughnessFactor": 0.24
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "dm_gunmetal_steel": {
+    "name": "dm_gunmetal_steel",
+    "mapTo": "dm_gunmetal_steel",
+    "class": "Material",
+    "version": 1.5,
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.392,
+          0.455,
+          0.545,
+          1
+        ],
+        "metallicFactor": 0.72,
+        "roughnessFactor": 0.38
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "dm_coil_spring": {
+    "name": "dm_coil_spring",
+    "mapTo": "dm_coil_spring",
+    "class": "Material",
+    "version": 1.5,
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.918,
+          0.702,
+          0.031,
+          1
+        ],
+        "metallicFactor": 0.25,
+        "roughnessFactor": 0.35
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "dm_brake_rotor": {
+    "name": "dm_brake_rotor",
+    "mapTo": "dm_brake_rotor",
+    "class": "Material",
+    "version": 1.5,
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.58,
+          0.639,
+          0.722,
+          1
+        ],
+        "metallicFactor": 0.85,
+        "roughnessFactor": 0.3
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "dm_brake_caliper": {
+    "name": "dm_brake_caliper",
+    "mapTo": "dm_brake_caliper",
+    "class": "Material",
+    "version": 1.5,
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.937,
+          0.267,
+          0.267,
+          1
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.28
+      },
+      {},
+      {},
+      {}
+    ]
+  }
+}

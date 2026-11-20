@@ -1,0 +1,27 @@
+{
+  "format": 2,
+  "model": "bx",
+  "parts": {
+    "bx_suspension_F": "bx_driftmod_dw_suspension_F",
+    "bx_driftmod_subframe_F": "bx_driftmod_tubular_subframe_F",
+    "bx_driftmod_steering_F": "bx_driftmod_rack_F",
+    "bx_driftmod_coilover_F": "bx_driftmod_coilover_F",
+    "bx_suspension_R": "bx_driftmod_suspension_R"
+  },
+  "vars": {
+    "$dm_steer_lock": 64,
+    "$dm_steer_speed": 1.32,
+    "$dm_wheel_deg": 900,
+    "$dm_ffb_gain": 120,
+    "$dm_ffb_damp": 16,
+    "$dm_spring_F": 78000,
+    "$dm_spring_R": 48000,
+    "$dm_arb_bias_R": 34,
+    "$dm_cage_rigidity": 1.25,
+    "$dm_rear_psi": 20,
+    "$dm_brake_bias": 65,
+    "$dm_lsd_lock": 96,
+    "$dm_final_drive": 4.11,
+    "$dm_boost_psi": 17
+  }
+}
