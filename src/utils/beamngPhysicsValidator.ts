@@ -1,4 +1,4 @@
-import { ChassisPreset, DriftTuneParams, ModFileSpec } from '../types/drift';
+import type { ChassisPreset, DriftTuneParams, ModFileSpec } from '../types/drift';
 
 export interface PhysicsCheckItem {
   id: string;

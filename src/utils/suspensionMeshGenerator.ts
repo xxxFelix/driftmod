@@ -1,4 +1,4 @@
-import { ChassisPreset, DriftTuneParams } from '../types/drift';
+import type { ChassisPreset, DriftTuneParams } from '../types/drift';
 
 export type Vec3 = [number, number, number];
 

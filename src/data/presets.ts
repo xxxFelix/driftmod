@@ -1,4 +1,4 @@
-import { ChassisPreset, TrackDefinition } from '../types/drift';
+import type { ChassisPreset, TrackDefinition } from '../types/drift';
 
 export const CHASSIS_PRESETS: ChassisPreset[] = [
   {
