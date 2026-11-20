@@ -299,6 +299,8 @@ export function validateModPhysics(
   let hasWheeldataSpindleRR = false;
   let hasDiffAxleRL = false;
   let hasDiffAxleRR = false;
+  let hasDiffDriveshaft = false;
+  let hasDiffDriveshaftInput = false;
 
   for (const [partName, part] of Object.entries(parts)) {
     if (secondaryVariants.has(partName)) continue;
@@ -406,6 +408,10 @@ export function validateModPhysics(
           }
         }
         if (partName.includes('diff_R')) {
+          // Gearbox -> driveshaft -> differential_R -> wheelaxleRL/RR chain must stay closed,
+          // otherwise BeamNG adds a dummy shaft and the driveshaft/halfshafts never appear.
+          if (pName === 'driveshaft' && pInput === 'gearbox') hasDiffDriveshaft = true;
+          if (pName === 'differential_R' && pInput === 'driveshaft') hasDiffDriveshaftInput = true;
           if (pName === 'wheelaxleRL') {
             hasDiffAxleRL = true;
             if ('connectedWheel' in pOpts) {
@@ -484,6 +490,11 @@ export function validateModPhysics(
   }
   if (!hasDiffAxleRL || !hasDiffAxleRR) {
     powertrainIssues.push('diff_R missing wheelaxleRL/wheelaxleRR shafts');
+  }
+  if (!hasDiffDriveshaft || !hasDiffDriveshaftInput) {
+    powertrainIssues.push(
+      'diff_R missing gearbox -> driveshaft -> differential_R chain (BeamNG drops the rear drivetrain: no driveshaft or halfshafts)'
+    );
   }
   if (_chassis.beamngInternalId === 'bx') {
     if (!nodes.has('fx6r') || !nodes.has('fx6l')) {
@@ -671,15 +682,24 @@ export function analyzeReferenceJbeam(
   const tieInTargets = new Set<string>();
   const tieInPairs: Array<{ local: string; remote: string }> = [];
 
-  for (const f of generatedFiles) {
-    if (!f.filename.endsWith('.jbeam')) continue;
-    const doc = JSON.parse(f.content) as Record<string, Record<string, unknown>>;
+  const genDocs = generatedFiles
+    .filter((f) => f.filename.endsWith('.jbeam'))
+    .map((f) => JSON.parse(f.content) as Record<string, Record<string, unknown>>);
+
+  // Pass 1: every generated node, so tie-in detection never depends on file order
+  for (const doc of genDocs) {
     for (const part of Object.values(doc)) {
       for (const row of (part.nodes as unknown[]) || []) {
         if (Array.isArray(row) && typeof row[0] === 'string' && typeof row[1] === 'number') {
           genNodes.set(row[0], [row[1], row[2] as number, row[3] as number]);
         }
       }
+    }
+  }
+
+  // Pass 2: optional beams whose far end is not a generated node are stock-body tie-ins
+  for (const doc of genDocs) {
+    for (const part of Object.values(doc)) {
       let isOpt = false;
       for (const row of (part.beams as unknown[]) || []) {
         if (!Array.isArray(row) && typeof row === 'object' && row !== null && 'optional' in row) {

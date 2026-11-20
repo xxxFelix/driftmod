@@ -125,7 +125,7 @@ function rotateAboutAxis(p: Vec3, origin: Vec3, axis: Vec3, angleRad: number): V
 test('all 5 generated JBeam files parse cleanly as valid JSON and expose selectable front/rear sub-slots', () => {
   const bx = CHASSIS_PRESETS[0];
   const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);
-  assert.equal(files.length, 5);
+  assert.equal(files.length, 6);
 
   const parsedParts: Record<string, Record<string, unknown>> = {};
   for (const f of files) {
@@ -146,7 +146,9 @@ test('all 5 generated JBeam files parse cleanly as valid JSON and expose selecta
   assert.ok(slotTypes.includes('bx_driftmod_coilover_F'));
   assert.ok(slotTypes.includes('bx_driftmod_swaybar_F'));
   assert.ok(slotTypes.includes('bx_driftmod_hub_F'));
+  assert.ok(slotTypes.includes('bx_driftmod_chassis_frame'));
 
+  assert.ok(parsedParts['bx_driftmod_chassis_frame']);
   assert.ok(parsedParts['bx_driftmod_tubular_subframe_F']);
   assert.ok(parsedParts['bx_driftmod_street_subframe_F']);
   assert.ok(parsedParts['bx_driftmod_rack_F']);
@@ -658,6 +660,64 @@ test('real BeamNG v0.40 BX stock body & suspension JBeams pass full compatibilit
   assert.ok(pwrR.some((r) => r[0] === 'shaft' && r[1] === 'spindleRR' && r[2] === 'wheelaxleRR'));
   assert.ok(modDiffR.powertrain, 'bx_driftmod_diff_R must define differential powertrain');
 
+  // Rear drivetrain chain must be closed: gearbox -> driveshaft -> differential_R -> wheelaxle -> spindle
+  const diffPt = (modDiffR.powertrain as unknown[][]) || [];
+  assert.ok(
+    diffPt.some((r) => r[0] === 'shaft' && r[1] === 'driveshaft' && r[2] === 'gearbox'),
+    'diff_R must define the driveshaft shaft driven by gearbox output 1'
+  );
+  assert.ok(
+    diffPt.some((r) => r[0] === 'differential' && r[1] === 'differential_R' && r[2] === 'driveshaft'),
+    'differential_R must be driven by the driveshaft device'
+  );
+  assert.ok(diffPt.some((r) => r[0] === 'shaft' && r[1] === 'wheelaxleRL' && r[2] === 'differential_R'));
+  assert.ok(diffPt.some((r) => r[0] === 'shaft' && r[1] === 'wheelaxleRR' && r[2] === 'differential_R'));
+
+  // Differential mount pickups must exist so the diff (DriftMod or stock) is physically mounted
+  const subRNodes = extractNodesMap(parsedMod['bx_driftmod_subframe_R']);
+  for (const nid of ['rx3r', 'rx3l', 'rx4r', 'rx4l', 'rx5r', 'rx5l', 'rx8']) {
+    assert.ok(subRNodes.has(nid), `rear subframe must provide differential mount node ${nid}`);
+  }
+
   const report = validateModPhysics(modFiles, bx, bx.defaultTune);
+  assert.equal(report.overallStatus, 'pass');
+});
+
+test('chassis frame ties the front subframe, sills and rear subframe with balanced finite-strength beams', () => {
+  const bx = CHASSIS_PRESETS[0];
+  const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);
+  const parsed: Record<string, Record<string, unknown>> = {};
+  for (const f of files) Object.assign(parsed, JSON.parse(f.content));
+
+  const frame = parsed['bx_driftmod_chassis_frame'];
+  assert.ok(frame, 'bx_driftmod_chassis_frame part must exist');
+
+  const frameNodes = extractNodesMap(frame);
+  for (const nid of ['cfb1r', 'cfb1l', 'cfb2r', 'cfb2l', 'cfb4r', 'cfb4l', 'cft1r', 'cft1l', 'cft3r', 'cft3l']) {
+    assert.ok(frameNodes.has(nid), `frame node ${nid} missing`);
+  }
+
+  const beams = (frame.beams as unknown[][]).filter(
+    (r) => Array.isArray(r) && typeof r[0] === 'string' && r[0] !== 'id1:'
+  );
+  assert.ok(beams.length >= 30, `frame must triangulate the cabin, got ${beams.length} beams`);
+  assert.ok(
+    !JSON.stringify(frame).includes('FLT_MAX'),
+    'frame beams must use finite strength so a heavy impact bends the frame instead of folding the body'
+  );
+  assert.ok(
+    beams.some((r) => r.includes('fx1r') || r.includes('fx2r')),
+    'frame must bolt to the front subframe'
+  );
+  assert.ok(
+    beams.some((r) => r.includes('rx1r') || r.includes('rx2r')),
+    'frame must bolt to the rear subframe'
+  );
+
+  const frontSusp = parsed['bx_driftmod_dw_suspension_F'];
+  const slot = (frontSusp.slots2 as unknown[][]).find((r) => r[0] === 'bx_driftmod_chassis_frame');
+  assert.ok(slot && slot[3] === 'bx_driftmod_chassis_frame', 'frame must be the default chassis-frame part');
+
+  const report = validateModPhysics(files, bx, bx.defaultTune);
   assert.equal(report.overallStatus, 'pass');
 });

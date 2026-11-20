@@ -97,6 +97,14 @@ export function buildDoubleWishboneJbeamFiles(
   // Rear anti-squat pickup geometry (higher antiSquatPct raises front link pickup toward IC)
   const zRearLinkFront = round4(0.25 + (tune.antiSquatPct / 100) * 0.12);
 
+  // Chassis frame (front-to-rear connector + tunnel brace) values. Balanced strength:
+  // stiff enough to stop the stock unibody folding under drift loads, but with a finite
+  // deform/strength so a heavy impact bends the frame instead of rigidly folding the body.
+  const frameRigidity = Math.min(1.2, Math.max(0.85, tune.chassisRigidity));
+  const frameSpring = Math.round(1050000 * frameRigidity);
+  const frameBeam = { beamSpring: frameSpring, beamDamp: 45, beamDeform: 150000, beamStrength: 620000 };
+  const frameTieIn = { optional: true, beamSpring: 651000, beamDamp: 35, beamDeform: 140000, beamStrength: 480000 };
+
   const controllerCfg = {
     steerLockDeg: '$dm_steer_lock',
     steerSpeed: '$dm_steer_speed',
@@ -141,6 +149,7 @@ export function buildDoubleWishboneJbeamFiles(
         [`${id}_driftmod_coilover_F`, [`${id}_driftmod_coilover_F`], [], `${id}_driftmod_coilover_F`, 'Front Coilovers', { coreSlot: true }],
         [`${id}_driftmod_swaybar_F`, [`${id}_driftmod_swaybar_F`], [], `${id}_driftmod_swaybar_F`, 'Front Sway Bar'],
         [`${id}_driftmod_hub_F`, [`${id}_driftmod_hub_F`], [], `${id}_driftmod_hub_F`, 'Front Drop-Knuckle Hubs', { coreSlot: true }],
+        [`${id}_driftmod_chassis_frame`, [`${id}_driftmod_chassis_frame`], [], `${id}_driftmod_chassis_frame`, 'Chassis Frame & Tunnel Brace', { coreSlot: true }],
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
@@ -379,7 +388,8 @@ export function buildDoubleWishboneJbeamFiles(
       beams: [
         ['id1:', 'id2:'],
         { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
-        { beamSpring: subframeSpring, beamDamp: 55, beamDeform: 165000, beamStrength: 'FLT_MAX' },
+        // Balanced strength: bends in a heavy impact instead of passing the whole load into the unibody
+        { beamSpring: subframeSpring, beamDamp: 55, beamDeform: 165000, beamStrength: 900000 },
         // Lower subframe perimeter & X-bracing
         ['fx1r', 'fx1l'], ['fx2r', 'fx2l'], ['fx1r', 'fx2r'], ['fx1l', 'fx2l'],
         ['fx1r', 'fx2l'], ['fx1l', 'fx2r'],
@@ -463,7 +473,7 @@ export function buildDoubleWishboneJbeamFiles(
       beams: [
         ['id1:', 'id2:'],
         { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
-        { beamSpring: Math.round(subframeSpring * 0.9), beamDamp: 55, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        { beamSpring: Math.round(subframeSpring * 0.9), beamDamp: 55, beamDeform: 140000, beamStrength: 820000 },
         ['fx1r', 'fx1l'], ['fx2r', 'fx2l'], ['fx1r', 'fx2r'], ['fx1l', 'fx2l'],
         ['fx1r', 'fx2l'], ['fx1l', 'fx2r'],
         { beamSpring: 1001000, beamDamp: 50 },
@@ -667,7 +677,79 @@ export function buildDoubleWishboneJbeamFiles(
     },
   };
 
-  // 5. Rear Anti-Squat Suspension + Subframe + Coilovers + ARB + Hubs + Rear Diff Hook
+  // 5. Chassis Frame: front subframe -> sills/tunnel -> rear subframe connector.
+  // Spreads coilover and subframe loads over the whole cabin instead of the few stock
+  // mount points the unibody was folding around, with a finite deform/strength budget.
+  const chassisFrameJbeam = {
+    [`${id}_driftmod_chassis_frame`]: {
+      information: {
+        authors: 'DriftMod Workbench',
+        name: `DriftMod Chassis Frame & Tunnel Brace (${tune.chassisRigidity.toFixed(2)}x Rigidity)`,
+        value: 2600,
+      },
+      slotType: `${id}_driftmod_chassis_frame`,
+      nodes: [
+        ['id', 'posX', 'posY', 'posZ'],
+        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 6.0 },
+        // Sill rails (front firewall -> rear subframe pickup)
+        ['cfb1r', -0.40, -0.98, 0.24],
+        ['cfb1l', 0.40, -0.98, 0.24],
+        ['cfb2r', -0.40, -0.25, 0.22],
+        ['cfb2l', 0.40, -0.25, 0.22],
+        ['cfb3r', -0.40, 0.45, 0.22],
+        ['cfb3l', 0.40, 0.45, 0.22],
+        ['cfb4r', -0.36, 1.10, 0.27],
+        ['cfb4l', 0.36, 1.10, 0.27],
+        // Transmission tunnel rails
+        ['cft1r', -0.13, -0.95, 0.34],
+        ['cft1l', 0.13, -0.95, 0.34],
+        ['cft2r', -0.13, 0.05, 0.31],
+        ['cft2l', 0.13, 0.05, 0.31],
+        ['cft3r', -0.13, 0.95, 0.33],
+        ['cft3l', 0.13, 0.95, 0.33],
+        { group: '' },
+      ],
+      beams: [
+        ['id1:', 'id2:'],
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        frameBeam,
+        // Sill & tunnel rails
+        ['cfb1r', 'cfb2r'], ['cfb2r', 'cfb3r'], ['cfb3r', 'cfb4r'],
+        ['cfb1l', 'cfb2l'], ['cfb2l', 'cfb3l'], ['cfb3l', 'cfb4l'],
+        ['cft1r', 'cft2r'], ['cft2r', 'cft3r'],
+        ['cft1l', 'cft2l'], ['cft2l', 'cft3l'],
+        // Cross members
+        ['cfb1r', 'cft1r'], ['cfb1l', 'cft1l'],
+        ['cfb2r', 'cft2r'], ['cfb2l', 'cft2l'],
+        ['cfb3r', 'cft3r'], ['cfb3l', 'cft3l'],
+        ['cfb4r', 'cft3r'], ['cfb4l', 'cft3l'],
+        ['cft1r', 'cft1l'], ['cft2r', 'cft2l'], ['cft3r', 'cft3l'],
+        ['cfb1r', 'cfb1l'], ['cfb4r', 'cfb4l'],
+        // Triangulation (stops the cabin parallelogramming under side load)
+        ['cfb1r', 'cft2r'], ['cfb1l', 'cft2l'],
+        ['cfb3r', 'cft2r'], ['cfb3l', 'cft2l'],
+        ['cfb4r', 'cft2r'], ['cfb4l', 'cft2l'],
+        ['cft1r', 'cfb2r'], ['cft1l', 'cfb2l'],
+        // Bolt-in tie-ins: stock unibody floor/sill nodes, then front & rear subframes.
+        // optional:true so a stock (or deselected) subframe leaves no dangling beams.
+        frameTieIn,
+        ['cfb1r', 'f2r'], ['cfb1r', 'f3r'], ['cfb1l', 'f2l'], ['cfb1l', 'f3l'],
+        ['cfb2r', 'f3r'], ['cfb2r', 'f7r'], ['cfb2l', 'f3l'], ['cfb2l', 'f7l'],
+        ['cfb3r', 'f4r'], ['cfb3r', 'f8r'], ['cfb3l', 'f4l'], ['cfb3l', 'f8l'],
+        ['cfb4r', 'r1'], ['cfb4r', 'r5rr'], ['cfb4l', 'r1'], ['cfb4l', 'r5ll'],
+        ['cft1r', 'f7r'], ['cft1l', 'f7l'], ['cft2r', 'f7r'], ['cft2l', 'f7l'],
+        ['cfb1r', 'fx1r'], ['cfb1r', 'fx2r'], ['cfb1l', 'fx1l'], ['cfb1l', 'fx2l'],
+        // Shock-tower load paths: front cowl towers and rear towers feed the frame, not just the shell
+        ['cfb1r', 'fc1r'], ['cfb1l', 'fc1l'],
+        ['cfb4r', 'rc1r'], ['cfb4l', 'rc1l'],
+        ['cfb4r', 'rx1r'], ['cfb4r', 'rx2r'], ['cfb4l', 'rx1l'], ['cfb4l', 'rx2l'],
+        ['cft3r', 'rx2r'], ['cft3l', 'rx2l'],
+        { optional: false },
+      ],
+    },
+  };
+
+  // 6. Rear Anti-Squat Suspension + Subframe + Coilovers + ARB + Hubs + Rear Diff Hook
   const suspensionRJbeam = {
     [`${id}_driftmod_suspension_R`]: {
       information: {
@@ -786,16 +868,36 @@ export function buildDoubleWishboneJbeamFiles(
         ['ru1l', 0.35, round4(yR - 0.175), 0.47],
         ['ru2r', -0.35, round4(yR + 0.175), 0.47],
         ['ru2l', 0.35, round4(yR + 0.175), 0.47],
+        // Stock differential mount pickups, kept at stock bx coordinates so both the DriftMod
+        // diff and the stock open/welded diffs have their link targets present in the tree.
+        // Kept out of the subframe mesh group so they cannot distort the flexbody.
+        { group: '', nodeWeight: 4.5 },
+        ['rx3r', -0.4546, 1.0876, 0.4563],
+        ['rx3l', 0.4546, 1.0876, 0.4563],
+        ['rx4r', -0.3368, 1.3403, 0.4603],
+        ['rx4l', 0.3368, 1.3403, 0.4603],
+        ['rx5r', -0.2068, 1.3925, 0.3334],
+        ['rx5l', 0.2068, 1.3925, 0.3334],
+        ['rx8', 0.0, 1.1, 0.54],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        { beamSpring: subframeSpring, beamDamp: 55, beamDeform: 165000, beamStrength: 'FLT_MAX' },
+        // Balanced strength: bends in a heavy impact instead of passing the whole load into the unibody
+        { beamSpring: subframeSpring, beamDamp: 55, beamDeform: 165000, beamStrength: 900000 },
         ['rx1r', 'rx1l'], ['rx2r', 'rx2l'], ['rx1r', 'rx2r'], ['rx1l', 'rx2l'],
         ['rx1r', 'rx2l'], ['rx1l', 'rx2r'],
         ['ru1r', 'ru2r'], ['ru1l', 'ru2l'], ['ru1r', 'ru1l'], ['ru2r', 'ru2l'],
         ['ru1r', 'rx1r'], ['ru2r', 'rx2r'], ['ru1r', 'rx2r'], ['ru2r', 'rx1r'],
         ['ru1l', 'rx1l'], ['ru2l', 'rx2l'], ['ru1l', 'rx2l'], ['ru2l', 'rx1l'],
+        // Differential mounts (carries diff reaction torque into the subframe)
+        { beamSpring: Math.round(1001000 * frameRigidity), beamDamp: 45, beamDeform: 145000, beamStrength: 900000 },
+        ['rx3r', 'rx3l'], ['rx5r', 'rx5l'],
+        ['rx3r', 'rx1r'], ['rx3r', 'rx2r'], ['rx3r', 'ru1r'],
+        ['rx3l', 'rx1l'], ['rx3l', 'rx2l'], ['rx3l', 'ru1l'],
+        ['rx4r', 'rx2r'], ['rx4r', 'ru2r'], ['rx4l', 'rx2l'], ['rx4l', 'ru2l'],
+        ['rx5r', 'rx2r'], ['rx5r', 'ru2r'], ['rx5l', 'rx2l'], ['rx5l', 'ru2l'],
+        ['rx8', 'rx1r'], ['rx8', 'rx1l'], ['rx8', 'rx4r'], ['rx8', 'rx4l'],
         { optional: true, beamSpring: 651000, beamDamp: 35 },
         ['rx1r', 'f4r'], ['rx1r', 'f4rr'], ['rx1r', 'f9r'],
         ['rx1l', 'f4l'], ['rx1l', 'f4ll'], ['rx1l', 'f9l'],
@@ -962,6 +1064,16 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_differential_R`,
       powertrain: [
         ['type', 'name', 'inputName', 'inputIndex'],
+        // Gearbox -> driveshaft -> differential_R -> wheelaxleRL/RR -> spindleRL/RR.
+        // The driveshaft device lives here (as in the stock bx differential part); without it
+        // the gearbox output is left unconsumed and BeamNG drops the whole rear drivetrain.
+        [
+          'shaft',
+          'driveshaft',
+          'gearbox',
+          1,
+          { friction: 0.5, uiName: 'Driveshaft' },
+        ],
         [
           'differential',
           'differential_R',
@@ -1010,6 +1122,13 @@ export function buildDoubleWishboneJbeamFiles(
       language: 'json',
       summary: `Selectable Chromoly Tubular & Street Double Wishbone Front Subframes with ${tune.chassisRigidity.toFixed(2)}x chassis rigidity.`,
       content: JSON.stringify(subframeFJbeam, null, 2),
+    },
+    {
+      filename: `${id}_driftmod_chassis_frame.jbeam`,
+      relativePath: `vehicles/${id}/driftmod/${id}_driftmod_chassis_frame.jbeam`,
+      language: 'json',
+      summary: `Bolt-in chassis frame & tunnel brace (${tune.chassisRigidity.toFixed(2)}x rigidity) linking front subframe, sills and rear subframe so the unibody stops folding under drift loads.`,
+      content: JSON.stringify(chassisFrameJbeam, null, 2),
     },
     {
       filename: `${id}_driftmod_steering_F.jbeam`,
