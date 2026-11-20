@@ -1,8 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { CHASSIS_PRESETS } from '../data/presets';
 import { buildDoubleWishboneJbeamFiles } from './doubleWishboneJbeam';
 import { buildModZipBlob, generateBeamNGModFiles } from './jbeamGenerator';
+import {
+  analyzeReferenceJbeam,
+  parseRelaxedJbeam,
+  validateModPhysics,
+} from './beamngPhysicsValidator';
 import {
   buildSuspensionMeshScene,
   serializeSuspensionColladaDae,
@@ -132,7 +139,7 @@ test('all 5 generated JBeam files parse cleanly as valid JSON and expose selecta
   assert.ok(frontSusp, 'bx_driftmod_dw_suspension_F must exist');
   assert.equal(frontSusp.slotType, 'bx_suspension_F');
 
-  const slotRows = frontSusp.slots as unknown[][];
+  const slotRows = frontSusp.slots2 as unknown[][];
   const slotTypes = slotRows.map((r) => r[0]);
   assert.ok(slotTypes.includes('bx_driftmod_subframe_F'));
   assert.ok(slotTypes.includes('bx_driftmod_steering_F'));
@@ -268,11 +275,12 @@ test('front & rear non-jointed components and swept 235/40R17 front tire maintai
   const fwInBase = nodes.get('fw1l')!;
   const fwOutBase = nodes.get('fw1ll')!;
 
-  const lcaElbow1Base: Vec3 = [0.31 + (fh1Base[0] - 0.31) * 0.34, yF - 0.025, 0.209];
-  const lcaElbow2Base: Vec3 = [0.31 + (fh1Base[0] - 0.31) * 0.70, yF - 0.012, 0.213];
-  const lcaRearElbowBase: Vec3 = [0.425, yF + 0.032, 0.210];
-  const ucaElbowFBase: Vec3 = [0.435, yF - 0.068, 0.495];
-  const ucaElbowRBase: Vec3 = [0.435, yF + 0.084, 0.495];
+  const lcaElbow1Base: Vec3 = [0.31 + (fh1Base[0] - 0.31) * 0.22, yF - 0.014, 0.255];
+  const lcaElbow2Base: Vec3 = [0.31 + (fh1Base[0] - 0.31) * 0.68, yF - 0.014, 0.255];
+  const lcaRearElbowBase: Vec3 = [0.385, yF - 0.006, 0.255];
+  const ucaElbowF1Base: Vec3 = [0.42, yF - 0.045, 0.54];
+  const ucaElbowF2Base: Vec3 = [0.505, yF - 0.062, 0.47];
+  const ucaElbowRBase: Vec3 = [0.425, yF + 0.058, 0.525];
 
   const lcaPivotMid: Vec3 = [(fx1[0] + fx2[0]) * 0.5, (fx1[1] + fx2[1]) * 0.5, (fx1[2] + fx2[2]) * 0.5];
   const lcaAxis: Vec3 = [fx2[0] - fx1[0], fx2[1] - fx1[1], fx2[2] - fx1[2]];
@@ -298,9 +306,10 @@ test('front & rear non-jointed components and swept 235/40R17 front tire maintai
       fh2Base[1],
       fh2Base[2] + (fh1[2] - fh1Base[2]),
     ];
-    const ucaBumpFrac = (fh2[2] - fh2Base[2]) / (0.6135 - 0.345);
-    const ucaEF: Vec3 = [ucaElbowFBase[0], ucaElbowFBase[1], ucaElbowFBase[2] + ucaBumpFrac * (0.435 - 0.345)];
-    const ucaER: Vec3 = [ucaElbowRBase[0], ucaElbowRBase[1], ucaElbowRBase[2] + ucaBumpFrac * (0.435 - 0.345)];
+    const ucaBumpFrac = (fh2[2] - fh2Base[2]) / (0.54 - 0.255);
+    const ucaEF1: Vec3 = [ucaElbowF1Base[0], ucaElbowF1Base[1], ucaElbowF1Base[2] + ucaBumpFrac * (0.54 - 0.255)];
+    const ucaEF2: Vec3 = [ucaElbowF2Base[0], ucaElbowF2Base[1], ucaElbowF2Base[2] + ucaBumpFrac * (0.47 - 0.255)];
+    const ucaER: Vec3 = [ucaElbowRBase[0], ucaElbowRBase[1], ucaElbowRBase[2] + ucaBumpFrac * (0.525 - 0.255)];
 
     const deltaKnuckle: Vec3 = [fh1[0] - fh1Base[0], fh1[1] - fh1Base[1], fh1[2] - fh1Base[2]];
     const kpAxis: Vec3 = [fh2[0] - fh1[0], fh2[1] - fh1[1], fh2[2] - fh1[2]];
@@ -327,35 +336,37 @@ test('front & rear non-jointed components and swept 235/40R17 front tire maintai
           name: 'coil_shaft',
           a: fsh1,
           b: [
-            fsh1[0] + (fc1[0] - fsh1[0]) * 0.34,
-            fsh1[1] + (fc1[1] - fsh1[1]) * 0.34,
-            fsh1[2] + (fc1[2] - fsh1[2]) * 0.34,
+            fsh1[0] + (fc1[0] - fsh1[0]) * 0.64,
+            fsh1[1] + (fc1[1] - fsh1[1]) * 0.64,
+            fsh1[2] + (fc1[2] - fsh1[2]) * 0.64,
           ],
           r: 0.013,
         },
         {
           name: 'coil_spring',
           a: [
-            fsh1[0] + (fc1[0] - fsh1[0]) * 0.28,
-            fsh1[1] + (fc1[1] - fsh1[1]) * 0.28,
-            fsh1[2] + (fc1[2] - fsh1[2]) * 0.28,
+            fsh1[0] + (fc1[0] - fsh1[0]) * 0.64,
+            fsh1[1] + (fc1[1] - fsh1[1]) * 0.64,
+            fsh1[2] + (fc1[2] - fsh1[2]) * 0.64,
           ],
           b: [
-            fsh1[0] + (fc1[0] - fsh1[0]) * 0.78,
-            fsh1[1] + (fc1[1] - fsh1[1]) * 0.78,
-            fsh1[2] + (fc1[2] - fsh1[2]) * 0.78,
+            fsh1[0] + (fc1[0] - fsh1[0]) * 0.94,
+            fsh1[1] + (fc1[1] - fsh1[1]) * 0.94,
+            fsh1[2] + (fc1[2] - fsh1[2]) * 0.94,
           ],
           r: 0.036,
         },
       ];
 
       const checkPairs: Array<[Seg, Seg]> = [
-        [coilSegs[0], { name: 'uca_f1', a: fu1, b: ucaEF, r: 0.014 }],
-        [coilSegs[0], { name: 'uca_f2', a: ucaEF, b: fh2, r: 0.014 }],
+        [coilSegs[0], { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 }],
+        [coilSegs[0], { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 }],
+        [coilSegs[0], { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 }],
         [coilSegs[0], { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 }],
         [coilSegs[0], { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_f1', a: fu1, b: ucaEF, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_f2', a: ucaEF, b: fh2, r: 0.014 }],
+        [coilSegs[1], { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 }],
+        [coilSegs[1], { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 }],
+        [coilSegs[1], { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 }],
         [coilSegs[1], { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 }],
         [coilSegs[1], { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
         [coilSegs[0], { name: 'spindle', a: fwIn, b: fwOut, r: 0.034 }],
@@ -393,7 +404,7 @@ test('front & rear non-jointed components and swept 235/40R17 front tire maintai
       const uLen = Math.hypot(ux, uy) || 1;
       const r1: Vec3 = [ux / uLen, uy / uLen, 0];
       const r2: Vec3 = [sy * r1[2] - sz * r1[1], sz * r1[0] - sx * r1[2], sx * r1[1] - sy * r1[0]];
-      const tireCenter: Vec3 = [fwIn[0] + sx * 0.145, fwIn[1] + sy * 0.145, fwIn[2] + sz * 0.145];
+      const tireCenter: Vec3 = [fwIn[0] + sx * 0.105, fwIn[1] + sy * 0.105, fwIn[2] + sz * 0.105];
       const tireRadius = 0.295;
       const tireHalfW = 0.112;
       const tireGuardSegs: Seg[] = [
@@ -402,8 +413,9 @@ test('front & rear non-jointed components and swept 235/40R17 front tire maintai
         { name: 'lca_f3', a: lcaE2, b: fh1, r: 0.016 },
         { name: 'lca_r1', a: fx2, b: lcaRE, r: 0.016 },
         { name: 'lca_r2', a: lcaRE, b: fh1, r: 0.016 },
-        { name: 'uca_f1', a: fu1, b: ucaEF, r: 0.014 },
-        { name: 'uca_f2', a: ucaEF, b: fh2, r: 0.014 },
+        { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 },
+        { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 },
+        { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 },
         { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 },
         { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 },
         { name: 'coil_spring', a: coilSegs[1].a, b: coilSegs[1].b, r: 0.036 },
@@ -501,4 +513,151 @@ test('all flexbody mesh names match Collada DAE node IDs and full mod ZIP archiv
 
   const blob = buildModZipBlob(files, bx.name);
   assert.ok(blob.size > 50000, 'Generated mod zip should contain full JBeam + DAE + Lua assets');
+});
+
+test('BeamNG 2000Hz physics pre-flight passes across all 5 chassis presets at default and extreme sliders', () => {
+  for (const preset of CHASSIS_PRESETS) {
+    const tunes = [
+      preset.defaultTune,
+      {
+        ...preset.defaultTune,
+        steeringLockDeg: 72,
+        frontSpringKn: 110,
+        rearSpringKn: 90,
+        chassisRigidity: 1.5,
+      },
+    ];
+    for (const tune of tunes) {
+      const files = generateBeamNGModFiles(preset, tune);
+      const report = validateModPhysics(files, preset, tune);
+      assert.equal(
+        report.overallStatus,
+        'pass',
+        `${preset.id} pre-flight failed: ${report.checks.map((c) => `${c.id}=${c.status}(${c.detail})`).join('; ')}`
+      );
+      assert.ok(
+        report.maxStiffnessRatio < 3_000_000,
+        `${preset.id} peak k/m ${report.maxStiffnessRatio} must stay below 3.0 MN/(m*kg)`
+      );
+      assert.ok(
+        report.maxDampingRatio < 2_400,
+        `${preset.id} peak c/m ${report.maxDampingRatio} must stay below 2400 s^-1`
+      );
+    }
+  }
+});
+
+test('parseRelaxedJbeam and analyzeReferenceJbeam strip comments/trailing commas and diff unibody tie-ins', () => {
+  const bx = CHASSIS_PRESETS[0];
+  const files = generateBeamNGModFiles(bx, bx.defaultTune);
+  const sampleStockBody = `{
+    // Simulated BeamNG stock bx_body snippet with comments and trailing commas
+    "bx_body": {
+      "slotType": "bx_body",
+      "slots": [
+        ["type", "default", "description"],
+        ["bx_suspension_F", "bx_suspension_F", "Front Suspension"],
+      ],
+      "nodes": [
+        ["id", "posX", "posY", "posZ"],
+        {"nodeWeight": 3.5},
+        ["f10rr", -0.36, -1.35, 0.24],
+        ["fs1r", -0.44, -1.25, 0.72],
+        /* trailing comma below */
+        ["f1r", -0.35, -1.05, 0.21],
+      ],
+      "beams": [
+        ["id1:", "id2:"],
+        {"beamSpring": 2200000, "beamDamp": 95},
+        ["f10rr", "f1r"],
+      ],
+    },
+  }`;
+
+  const parsed = parseRelaxedJbeam(sampleStockBody);
+  assert.ok(parsed.bx_body);
+  const summary = analyzeReferenceJbeam(sampleStockBody, files);
+  assert.deepEqual(summary.partNames, ['bx_body']);
+  assert.equal(summary.nodeCount, 3);
+  assert.deepEqual(summary.nodeWeightRange, [3.5, 3.5]);
+  assert.deepEqual(summary.beamSpringRange, [2200000, 2200000]);
+  assert.ok(summary.matchedTieInNodes.some((m) => m.nodeId === 'f10rr'));
+  assert.ok(summary.matchedTieInNodes.some((m) => m.nodeId === 'fs1r'));
+});
+
+test('real BeamNG v0.40 BX stock body & suspension JBeams pass full compatibility, tie-in, axle Y, wheel offset, and powertrain checks', () => {
+  const jbeamDir = path.resolve(process.cwd(), 'Jbeams for mod');
+  const coupeRaw = fs.readFileSync(path.join(jbeamDir, 'bx_body_coupe.jbeam'), 'utf8');
+  const hatchRaw = fs.readFileSync(path.join(jbeamDir, 'bx_body_hatch.jbeam'), 'utf8');
+  const stockFrontRaw = fs.readFileSync(path.join(jbeamDir, 'bx_suspension_F.jbeam'), 'utf8');
+  const stockRearRaw = fs.readFileSync(path.join(jbeamDir, 'bx_suspension_R.jbeam'), 'utf8');
+
+  const bx = CHASSIS_PRESETS[0];
+  const modFiles = generateBeamNGModFiles(bx, bx.defaultTune);
+
+  const coupeParsed = parseRelaxedJbeam(coupeRaw) as Record<string, unknown>;
+  const hatchParsed = parseRelaxedJbeam(hatchRaw) as Record<string, unknown>;
+  const stockFrontParsed = parseRelaxedJbeam(stockFrontRaw) as Record<string, Record<string, unknown>>;
+  const stockRearParsed = parseRelaxedJbeam(stockRearRaw) as Record<string, Record<string, unknown>>;
+
+  assert.ok(coupeParsed.bx_body_coupe, 'bx_body_coupe must parse cleanly');
+  assert.ok(hatchParsed.bx_body_hatch, 'bx_body_hatch must parse cleanly');
+  assert.ok(stockFrontParsed.bx_suspension_F, 'bx_suspension_F must parse cleanly');
+  assert.ok(stockRearParsed.bx_suspension_R, 'bx_suspension_R must parse cleanly');
+
+  // Verify zero missing unibody tie-in nodes on BOTH coupe and hatch bodies
+  const coupeSummary = analyzeReferenceJbeam(coupeRaw, modFiles);
+  const hatchSummary = analyzeReferenceJbeam(hatchRaw, modFiles);
+  assert.deepEqual(
+    coupeSummary.missingUnibodyTieIns,
+    [],
+    `Coupe missing tie-in nodes: ${coupeSummary.missingUnibodyTieIns.join(', ')}`
+  );
+  assert.deepEqual(
+    hatchSummary.missingUnibodyTieIns,
+    [],
+    `Hatch missing tie-in nodes: ${hatchSummary.missingUnibodyTieIns.join(', ')}`
+  );
+
+  // Verify wheel hub alignment, powertrain spindles, fx6r/fx6l engine mounts & validateModPhysics pass
+  const parsedMod: Record<string, Record<string, unknown>> = {};
+  for (const f of modFiles) {
+    if (f.filename.endsWith('.jbeam')) {
+      Object.assign(parsedMod, JSON.parse(f.content));
+    }
+  }
+
+  const modHubF = parsedMod['bx_driftmod_hub_F'];
+  const modHubR = parsedMod['bx_driftmod_hub_R'];
+  const modSubF = parsedMod['bx_driftmod_tubular_subframe_F'];
+  const modWheeldataR = parsedMod['bx_driftmod_wheeldata_R'];
+  const modDiffR = parsedMod['bx_driftmod_diff_R'];
+
+  const hubFNodes = extractNodesMap(modHubF);
+  const hubRNodes = extractNodesMap(modHubR);
+  const subFNodes = extractNodesMap(modSubF);
+
+  // Compare front & rear hub Y center against stock fw1r/rw1r (-1.25 / +1.25)
+  const stockFrontHubNodes = extractNodesMap(stockFrontParsed.bx_hub_F_5);
+  const stockRearHubNodes = extractNodesMap(stockRearParsed.bx_hub_R_5);
+  const stockFy = stockFrontHubNodes.get('fw1r')![1];
+  const stockRy = stockRearHubNodes.get('rw1r')![1];
+  assert.ok(Math.abs(hubFNodes.get('fw1r')![1] - stockFy) < 0.015, 'Front hub Y must match stock bx_hub_F_5');
+  assert.ok(Math.abs(hubRNodes.get('rw1r')![1] - stockRy) < 0.015, 'Rear hub Y must match stock bx_hub_R_5');
+
+  // Verify nodeOffset on wheel_F_5 & wheel_R_5
+  const wheelFSlot = (modHubF.slots2 as unknown[][]).find((r) => r[0] === 'wheel_F_5');
+  const wheelRSlot = (modHubR.slots2 as unknown[][]).find((r) => r[0] === 'wheel_R_5');
+  assert.ok(wheelFSlot && (wheelFSlot[5] as { nodeOffset?: { z: number } })?.nodeOffset?.z === 0.35);
+  assert.ok(wheelRSlot && (wheelRSlot[5] as { nodeOffset?: { z: number } })?.nodeOffset?.z === 0.325);
+
+  // Verify fx6r/fx6l front engine mount nodes and rear spindle powertrain shafts exist
+  assert.ok(subFNodes.has('fx6r') && subFNodes.has('fx6l'), 'fx6r/fx6l engine mount nodes must exist');
+  const pwrR = (modWheeldataR.powertrain as unknown[][]) || [];
+  assert.ok(pwrR.some((r) => r[0] === 'shaft' && r[1] === 'spindleRL' && r[2] === 'wheelaxleRL'));
+  assert.ok(pwrR.some((r) => r[0] === 'shaft' && r[1] === 'spindleRR' && r[2] === 'wheelaxleRR'));
+  assert.ok(modDiffR.powertrain, 'bx_driftmod_diff_R must define differential powertrain');
+
+  const report = validateModPhysics(modFiles, bx, bx.defaultTune);
+  assert.equal(report.overallStatus, 'pass');
 });

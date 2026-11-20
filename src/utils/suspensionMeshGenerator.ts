@@ -158,14 +158,22 @@ class MeshBuilder {
     this.addQuad(p[1], p[2], p[6], p[5]); // left
   }
 
-  addCoilRings(pBottom: Vec3, pTop: Vec3, coilRadius: number, wireRadius: number, coils = 6) {
+  addCoilRings(
+    pBottom: Vec3,
+    pTop: Vec3,
+    coilRadius: number,
+    wireRadius: number,
+    coils = 6,
+    tStart = 0.28,
+    tSpan = 0.5
+  ) {
     const segsPerCoil = 8;
     const totalSegs = coils * segsPerCoil;
     const axis = sub(pTop, pBottom);
     const [u, v] = orthonormalBasis(axis);
     let prevCenter: Vec3 | null = null;
     for (let i = 0; i <= totalSegs; i++) {
-      const t = 0.28 + (i / totalSegs) * 0.50;
+      const t = tStart + (i / totalSegs) * tSpan;
       const ang = (i / segsPerCoil) * Math.PI * 2;
       const center = add(
         add(pBottom, scale(axis, t)),
@@ -193,35 +201,40 @@ export function buildSuspensionMeshScene(
   const camberRRad = degToRad(tune.rearCamberDeg);
   const toeRRad = degToRad(tune.rearToeDeg);
 
-  const zLBJ = 0.215;
-  const zUBJ = 0.505;
+  const zLBJ = 0.255;
+  const zUBJ = 0.54;
   const dzKingpin = zUBJ - zLBJ;
-  const xLBJ = 0.645;
+  const xLBJ = 0.71;
   const xUBJ = xLBJ - dzKingpin * Math.tan(kpiRad);
   const yLBJ = yF - 0.135 * Math.tan(casterRad);
   const yUBJ = yLBJ + dzKingpin * Math.tan(casterRad);
 
-  // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.278m clear of LCA & subframe
+  // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.315m clear of LCA & subframe
   const ackermannShift = (tune.ackermannPct / 100) * 0.026;
   const xTieOuter = xLBJ - ackermannShift;
   const yTieOuter = yF + 0.116;
-  const zTieOuter = 0.278;
+  const zTieOuter = 0.315;
 
-  const xHubIn = 0.67;
-  const xHubOut = 0.83;
-  const spindleLen = xHubOut - xHubIn;
-  const zHubCenter = 0.305;
-  const dzCamberF = spindleLen * 0.5 * Math.sin(-camberFRad);
-  const dyToeF = spindleLen * 0.5 * Math.sin(toeFRad);
-  const dzCamberR = spindleLen * 0.5 * Math.sin(-camberRRad);
-  const dyToeR = spindleLen * 0.5 * Math.sin(toeRRad);
+  const xHubInF = 0.665;
+  const xHubOutF = 0.875;
+  const spindleLenF = xHubOutF - xHubInF;
+  const zHubCenterF = 0.35;
+  const dzCamberF = spindleLenF * 0.5 * Math.sin(-camberFRad);
+  const dyToeF = spindleLenF * 0.5 * Math.sin(toeFRad);
+
+  const xHubInR = 0.56;
+  const xHubOutR = 0.77;
+  const spindleLenR = xHubOutR - xHubInR;
+  const zHubCenterR = 0.325;
+  const dzCamberR = spindleLenR * 0.5 * Math.sin(-camberRRad);
+  const dyToeR = spindleLenR * 0.5 * Math.sin(toeRRad);
 
   // Match tie-rod inner pivot X & Z plane to LCA inner pivot (0.31m) to eliminate bump-steer,
-  // raised 73mm clear above subframe rail (0.205m) and offset forward (yF + 0.060)
+  // raised 60mm clear above subframe rail (0.255m) and offset forward (yF + 0.060)
   const xRackMount = 0.31;
   const yRack = yF + 0.06;
   const zRack = zTieOuter;
-  const zRearLinkFront = 0.21 + (tune.antiSquatPct / 100) * 0.14;
+  const zRearLinkFront = 0.25 + (tune.antiSquatPct / 100) * 0.12;
 
   const parts: MeshPart[] = [];
 
@@ -248,21 +261,21 @@ export function buildSuspensionMeshScene(
   // 1. Chromoly Tubular Front Subframe + Triangulated Strut Tower Brace
   {
     const mb = new MeshBuilder();
-    const fx1r: Vec3 = [-0.31, yF - 0.125, 0.205];
-    const fx1l: Vec3 = [0.31, yF - 0.125, 0.205];
-    const fx2r: Vec3 = [-0.31, yF + 0.195, 0.205];
-    const fx2l: Vec3 = [0.31, yF + 0.195, 0.205];
-    const fu1r: Vec3 = [-0.345, yF - 0.13, 0.49];
-    const fu1l: Vec3 = [0.345, yF - 0.13, 0.49];
-    const fu2r: Vec3 = [-0.345, yF + 0.185, 0.49];
-    const fu2l: Vec3 = [0.345, yF + 0.185, 0.49];
+    const fx1r: Vec3 = [-0.31, yF - 0.145, 0.255];
+    const fx1l: Vec3 = [0.31, yF - 0.145, 0.255];
+    const fx2r: Vec3 = [-0.31, yF + 0.175, 0.255];
+    const fx2l: Vec3 = [0.31, yF + 0.175, 0.255];
+    const fu1r: Vec3 = [-0.345, yF - 0.145, 0.515];
+    const fu1l: Vec3 = [0.345, yF - 0.145, 0.515];
+    const fu2r: Vec3 = [-0.345, yF + 0.145, 0.515];
+    const fu2l: Vec3 = [0.345, yF + 0.145, 0.515];
     const fx3r: Vec3 = [-xRackMount, yRack, zRack];
     const fx3l: Vec3 = [xRackMount, yRack, zRack];
-    const fx4r: Vec3 = [-0.27, yF - 0.11, 0.355];
-    const fx4l: Vec3 = [0.27, yF - 0.11, 0.355];
-    const fc1r: Vec3 = [-0.425, yF + 0.008, 0.72];
-    const fc1l: Vec3 = [0.425, yF + 0.008, 0.72];
-    const fc0: Vec3 = [0, yF + 0.19, 0.73];
+    const fx4r: Vec3 = [-0.4, yF - 0.05, 0.4];
+    const fx4l: Vec3 = [0.4, yF - 0.05, 0.4];
+    const fc1r: Vec3 = [-0.34, yF + 0.008, 0.745];
+    const fc1l: Vec3 = [0.34, yF + 0.008, 0.745];
+    const fc0: Vec3 = [0, yF + 0.18, 0.74];
 
     const rMain = 0.018 * Math.min(1.25, Math.max(0.88, tune.chassisRigidity * 0.85));
     // Lower cradle & crossmember
@@ -307,26 +320,26 @@ export function buildSuspensionMeshScene(
   // 2. Front Upper & Swept Lower Wishbones (Left & Right) + Drop Knuckles
   for (const side of [-1, 1] as const) {
     const tag = side < 0 ? 'FR' : 'FL';
-    const fx1: Vec3 = [side * 0.31, yF - 0.125, 0.205];
-    const fx2: Vec3 = [side * 0.31, yF + 0.195, 0.205];
-    const fu1: Vec3 = [side * 0.345, yF - 0.13, 0.49];
-    const fu2: Vec3 = [side * 0.345, yF + 0.185, 0.49];
+    const fx1: Vec3 = [side * 0.31, yF - 0.145, 0.255];
+    const fx2: Vec3 = [side * 0.31, yF + 0.175, 0.255];
+    const fu1: Vec3 = [side * 0.345, yF - 0.145, 0.515];
+    const fu2: Vec3 = [side * 0.345, yF + 0.145, 0.515];
     const fh1: Vec3 = [side * xLBJ, yLBJ, zLBJ];
-    const fsh1: Vec3 = [side * 0.475, yF + 0.008, 0.226];
+    const fsh1: Vec3 = [side * 0.455, yF + 0.008, 0.264];
     const fh2: Vec3 = [side * xUBJ, yUBJ, zUBJ];
     const fh3: Vec3 = [side * xTieOuter, yTieOuter, zTieOuter];
-    const fh4: Vec3 = [side * xLBJ, yF - 0.055, 0.385];
-    const fh5: Vec3 = [side * xLBJ, yF + 0.055, 0.385];
-    const fc1: Vec3 = [side * 0.425, yF + 0.008, 0.72];
-    const fwIn: Vec3 = [side * xHubIn, yF - dyToeF, zHubCenter - dzCamberF];
-    const fwOut: Vec3 = [side * xHubOut, yF + dyToeF, zHubCenter + dzCamberF];
+    const fh4: Vec3 = [side * xLBJ, yF - 0.055, 0.425];
+    const fh5: Vec3 = [side * xLBJ, yF + 0.055, 0.425];
+    const fc1: Vec3 = [side * 0.34, yF + 0.008, 0.745];
+    const fwIn: Vec3 = [side * xHubInF, yF - dyToeF, zHubCenterF - dzCamberF];
+    const fwOut: Vec3 = [side * xHubOutF, yF + dyToeF, zHubCenterF + dzCamberF];
     const hubMid = scale(add(fwIn, fwOut), 0.5);
 
     // High-Clearance Pinched-Pocket Lower Wishbone A-Arm + inboard shock clevis cross-tube
     const lcaMb = new MeshBuilder();
-    const lcaElbow1: Vec3 = [side * (0.31 + (xLBJ - 0.31) * 0.34), yF - 0.025, 0.209];
-    const lcaElbow2: Vec3 = [side * (0.31 + (xLBJ - 0.31) * 0.70), yF - 0.012, 0.213];
-    const lcaRearElbow: Vec3 = [side * 0.425, yF + 0.032, 0.210];
+    const lcaElbow1: Vec3 = [side * (0.31 + (xLBJ - 0.31) * 0.22), yF - 0.014, 0.255];
+    const lcaElbow2: Vec3 = [side * (0.31 + (xLBJ - 0.31) * 0.68), yF - 0.014, 0.255];
+    const lcaRearElbow: Vec3 = [side * 0.385, yF - 0.006, 0.255];
     lcaMb.addTube(fx1, lcaElbow1, 0.016, 8);
     lcaMb.addTube(lcaElbow1, lcaElbow2, 0.016, 8);
     lcaMb.addTube(lcaElbow2, fh1, 0.016, 8);
@@ -336,12 +349,14 @@ export function buildSuspensionMeshScene(
     lcaMb.addTube(lcaRearElbow, fsh1, 0.013, 6);
     pushPart(`driftmod_lca_${tag}`, `Front Lower Wishbone (${tag})`, 'front', 'arms', 'dm_chromoly_orange', lcaMb);
 
-    // Open-Window High-Angle Upper Wishbone A-Arm (~80% of LCA length; clears coilover & +/-70 deg tire barrel)
+    // Open-Window High-Angle Upper Wishbone A-Arm (~78-81% of LCA length; clears coilover & +/-70 deg tire barrel)
     const ucaMb = new MeshBuilder();
-    const ucaElbowF: Vec3 = [side * 0.435, yF - 0.068, 0.495];
-    const ucaElbowR: Vec3 = [side * 0.435, yF + 0.084, 0.495];
-    ucaMb.addTube(fu1, ucaElbowF, 0.014, 8);
-    ucaMb.addTube(ucaElbowF, fh2, 0.014, 8);
+    const ucaElbowF1: Vec3 = [side * 0.42, yF - 0.045, 0.54];
+    const ucaElbowF2: Vec3 = [side * 0.505, yF - 0.062, 0.47];
+    const ucaElbowR: Vec3 = [side * 0.425, yF + 0.058, 0.525];
+    ucaMb.addTube(fu1, ucaElbowF1, 0.014, 8);
+    ucaMb.addTube(ucaElbowF1, ucaElbowF2, 0.014, 8);
+    ucaMb.addTube(ucaElbowF2, fh2, 0.014, 8);
     ucaMb.addTube(fu2, ucaElbowR, 0.014, 8);
     ucaMb.addTube(ucaElbowR, fh2, 0.014, 8);
     pushPart(`driftmod_uca_${tag}`, `Front Upper Wishbone (${tag})`, 'front', 'arms', 'dm_chromoly_orange', ucaMb);
@@ -359,17 +374,17 @@ export function buildSuspensionMeshScene(
     knMb.addTube(fwIn, fwOut, 0.034, 10); // Spindle & hub flange
     pushPart(`driftmod_knuckle_${tag}`, `Drop-Knuckle Upright (${tag})`, 'front', 'knuckle', 'dm_billet_alu', knMb);
 
-    // 2-Way Front Coilover + Helical Spring (mounted to inboard LCA clevis fsh1 -> fc1)
+    // 2-Way Front Coilover + High-Perch Helical Spring (mounted to inboard LCA clevis fsh1 -> fc1)
     const coilMb = new MeshBuilder();
-    const coilMid = add(fsh1, scale(sub(fc1, fsh1), 0.34));
-    coilMb.addTube(fsh1, coilMid, 0.013, 8); // Piston shaft clear of tie rod
-    coilMb.addTube(coilMid, fc1, 0.022, 8); // Anodized shock body
-    coilMb.addCoilRings(fsh1, fc1, 0.030, 0.006, 6); // Helical spring
+    const coilMid = add(fsh1, scale(sub(fc1, fsh1), 0.64));
+    coilMb.addTube(fsh1, coilMid, 0.013, 8); // Slim piston shaft clear of +/-70 deg tire barrel
+    coilMb.addTube(coilMid, fc1, 0.022, 8); // Anodized upper shock body
+    coilMb.addCoilRings(fsh1, fc1, 0.03, 0.006, 5, 0.64, 0.3); // High-perch helical spring
     pushPart(`driftmod_coilover_${tag}`, `2-Way Drift Coilover (${tag})`, 'front', 'coilover', 'dm_coil_spring', coilMb);
 
     // Slotted Front Brake Rotor (metallic steel, outboard on hub) + 6-Piston Caliper (red)
     const rotorMb = new MeshBuilder();
-    const rotorIn = add(fwIn, scale(sub(fwOut, fwIn), 0.60));
+    const rotorIn = add(fwIn, scale(sub(fwOut, fwIn), 0.6));
     const rotorOut = add(fwIn, scale(sub(fwOut, fwIn), 0.73));
     const rotorMid = scale(add(rotorIn, rotorOut), 0.5);
     rotorMb.addTube(rotorIn, rotorOut, 0.152, 20);
@@ -394,17 +409,17 @@ export function buildSuspensionMeshScene(
     pushPart('driftmod_steering_F', 'Quick-Ratio Steering Rack & Tie Rods', 'front', 'steering', 'dm_billet_alu', rackMb);
   }
 
-  // 4. Rear Anti-Squat Multi-Link Subframe, Arms, Coilovers & Brakes
+  // 4. Rear Anti-Squat Multi-Link Subframe, Arms, Coilovers & Brakes (split RR/RL for independent flexbody articulation)
   {
     const subRMb = new MeshBuilder();
     const rx1r: Vec3 = [-0.33, yR - 0.24, zRearLinkFront];
     const rx1l: Vec3 = [0.33, yR - 0.24, zRearLinkFront];
-    const rx2r: Vec3 = [-0.33, yR + 0.18, 0.23];
-    const rx2l: Vec3 = [0.33, yR + 0.18, 0.23];
-    const ru1r: Vec3 = [-0.35, yR - 0.175, 0.45];
-    const ru1l: Vec3 = [0.35, yR - 0.175, 0.45];
-    const ru2r: Vec3 = [-0.35, yR + 0.175, 0.45];
-    const ru2l: Vec3 = [0.35, yR + 0.175, 0.45];
+    const rx2r: Vec3 = [-0.33, yR + 0.18, 0.26];
+    const rx2l: Vec3 = [0.33, yR + 0.18, 0.26];
+    const ru1r: Vec3 = [-0.35, yR - 0.175, 0.47];
+    const ru1l: Vec3 = [0.35, yR - 0.175, 0.47];
+    const ru2r: Vec3 = [-0.35, yR + 0.175, 0.47];
+    const ru2l: Vec3 = [0.35, yR + 0.175, 0.47];
     subRMb.addTube(rx1r, rx1l, 0.018, 8);
     subRMb.addTube(rx2r, rx2l, 0.018, 8);
     subRMb.addTube(rx1r, rx2r, 0.018, 8);
@@ -417,24 +432,26 @@ export function buildSuspensionMeshScene(
     subRMb.addTube(ru2l, rx2l, 0.015, 6);
     pushPart('driftmod_subframe_R', 'Rear Anti-Squat Subframe', 'rear', 'subframe', 'dm_gunmetal_steel', subRMb);
 
-    const armsRMb = new MeshBuilder();
-    const coilRMb = new MeshBuilder();
-    const knRMb = new MeshBuilder();
-    const rotorRMb = new MeshBuilder();
-    const brkRMb = new MeshBuilder();
     for (const side of [-1, 1] as const) {
+      const rTag = side < 0 ? 'RR' : 'RL';
+      const armsRMb = new MeshBuilder();
+      const coilRMb = new MeshBuilder();
+      const knRMb = new MeshBuilder();
+      const rotorRMb = new MeshBuilder();
+      const brkRMb = new MeshBuilder();
+
       const rx1: Vec3 = [side * 0.33, yR - 0.24, zRearLinkFront];
-      const rx2: Vec3 = [side * 0.33, yR + 0.18, 0.23];
-      const ru1: Vec3 = [side * 0.35, yR - 0.175, 0.45];
-      const ru2: Vec3 = [side * 0.35, yR + 0.175, 0.45];
-      const rh1: Vec3 = [side * 0.65, yR, 0.215];
-      const rsh1: Vec3 = [side * 0.495, yR + 0.005, 0.225];
-      const rh2: Vec3 = [side * 0.635, yR, 0.455];
-      const rh4: Vec3 = [side * 0.65, yR - 0.085, 0.325];
-      const rh5: Vec3 = [side * 0.65, yR + 0.105, 0.325];
-      const rc1: Vec3 = [side * 0.445, yR + 0.005, 0.72];
-      const rwIn: Vec3 = [side * 0.66, yR - dyToeR, zHubCenter - dzCamberR];
-      const rwOut: Vec3 = [side * 0.82, yR + dyToeR, zHubCenter + dzCamberR];
+      const rx2: Vec3 = [side * 0.33, yR + 0.18, 0.26];
+      const ru1: Vec3 = [side * 0.35, yR - 0.175, 0.47];
+      const ru2: Vec3 = [side * 0.35, yR + 0.175, 0.47];
+      const rh1: Vec3 = [side * 0.635, yR, 0.245];
+      const rsh1: Vec3 = [side * 0.485, yR + 0.005, 0.255];
+      const rh2: Vec3 = [side * 0.625, yR, 0.475];
+      const rh4: Vec3 = [side * 0.635, yR - 0.085, 0.345];
+      const rh5: Vec3 = [side * 0.635, yR + 0.105, 0.345];
+      const rc1: Vec3 = [side * 0.45, yR + 0.005, 0.745];
+      const rwIn: Vec3 = [side * xHubInR, yR - dyToeR, zHubCenterR - dzCamberR];
+      const rwOut: Vec3 = [side * xHubOutR, yR + dyToeR, zHubCenterR + dzCamberR];
       const hubMid = scale(add(rwIn, rwOut), 0.5);
 
       armsRMb.addTube(rx1, rh1, 0.015, 6);
@@ -455,17 +472,18 @@ export function buildSuspensionMeshScene(
       coilRMb.addTube(coilMidR, rc1, 0.021, 8);
       coilRMb.addCoilRings(rsh1, rc1, 0.03, 0.006, 6);
 
-      const rotorIn = add(rwIn, scale(sub(rwOut, rwIn), 0.60));
+      const rotorIn = add(rwIn, scale(sub(rwOut, rwIn), 0.6));
       const rotorOut = add(rwIn, scale(sub(rwOut, rwIn), 0.72));
       const rotorMid = scale(add(rotorIn, rotorOut), 0.5);
       rotorRMb.addTube(rotorIn, rotorOut, 0.144, 18);
       brkRMb.addBox([rotorMid[0], rotorMid[1] - 0.12, rotorMid[2] + 0.035], [0.056, 0.08, 0.105]);
+
+      pushPart(`driftmod_arms_${rTag}`, `Rear Multi-Link Control Arms (${rTag})`, 'rear', 'arms', 'dm_chromoly_orange', armsRMb);
+      pushPart(`driftmod_knuckle_${rTag}`, `Rear Upright & Spindle (${rTag})`, 'rear', 'knuckle', 'dm_billet_alu', knRMb);
+      pushPart(`driftmod_coilover_${rTag}`, `Rear 2-Way Coilover (${rTag})`, 'rear', 'coilover', 'dm_coil_spring', coilRMb);
+      pushPart(`driftmod_rotor_${rTag}`, `Rear Slotted Brake Rotor (${rTag})`, 'rear', 'brake', 'dm_brake_rotor', rotorRMb);
+      pushPart(`driftmod_brake_${rTag}`, `Rear Dual-Caliper Brake (${rTag})`, 'rear', 'brake', 'dm_brake_caliper', brkRMb);
     }
-    pushPart('driftmod_arms_R', 'Rear Multi-Link Control Arms', 'rear', 'arms', 'dm_chromoly_orange', armsRMb);
-    pushPart('driftmod_knuckle_R', 'Rear Uprights & Spindles', 'rear', 'knuckle', 'dm_billet_alu', knRMb);
-    pushPart('driftmod_coilover_R', 'Rear 2-Way Coilovers', 'rear', 'coilover', 'dm_coil_spring', coilRMb);
-    pushPart('driftmod_rotor_R', 'Rear Slotted Brake Rotors', 'rear', 'brake', 'dm_brake_rotor', rotorRMb);
-    pushPart('driftmod_brake_R', 'Rear Dual-Caliper Brakes', 'rear', 'brake', 'dm_brake_caliper', brkRMb);
   }
 
   return parts;

@@ -7,7 +7,7 @@ export const CHASSIS_PRESETS: ChassisPreset[] = [
     beamngInternalId: 'bx',
     drivetrain: 'FR · 2.4L Turbo I4',
     massKg: 1185,
-    wheelbaseM: 2.47,
+    wheelbaseM: 2.5,
     basePowerHp: 350,
     redlineRpm: 7800,
     bodyLengthPx: 44,

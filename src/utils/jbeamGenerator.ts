@@ -163,15 +163,15 @@ local function applyDriftModTune()
 
   local springF = tonumber(cfg.springF) or ${frontSpringNm}
   local springR = tonumber(cfg.springR) or ${rearSpringNm}
-  local dampBumpF = math.floor(springF * 0.058)
-  local dampReboundF = math.floor(springF * 0.112)
-  local dampBumpR = math.floor(springR * 0.052)
-  local dampReboundR = math.floor(springR * 0.098)
+  local dampBumpF = math.min(1800, math.floor(springF * 0.016))
+  local dampReboundF = math.min(2800, math.floor(springF * 0.026))
+  local dampBumpR = math.min(1600, math.floor(springR * 0.015))
+  local dampReboundR = math.min(2500, math.floor(springR * 0.024))
 
   local arbBiasR = clamp(tonumber(cfg.arbBiasR) or ${tune.rearArbBiasPct}, 20, 80)
   local frontArbScale = clamp(1.0 + (50 - arbBiasR) * 0.014, 0.45, 1.75)
   local rearArbScale = clamp(1.0 + (arbBiasR - 50) * 0.014, 0.25, 1.75)
-  local cageScale = clamp(tonumber(cfg.cageRigidity) or ${tune.chassisRigidity.toFixed(2)}, 0.85, 1.35)
+  local cageScale = clamp(tonumber(cfg.cageRigidity) or ${tune.chassisRigidity.toFixed(2)}, 0.85, 1.20)
   local ffbDampPct = clamp(tonumber(cfg.ffbDampingPct) or ${tune.ffbDampingPct}, 0, 60)
   local rackDampScale = clamp(0.68 + (ffbDampPct / 60) * 0.82, 0.65, 1.50)
 
@@ -189,11 +189,15 @@ local function applyDriftModTune()
         if base.spring >= 8000 and base.spring <= 650000 then
           local isDriftMod = strContains(origin, "driftmod")
           if base.isFront then
-            local mrF = isDriftMod and 4.16 or 1.0
-            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springF * mrF), math.floor(dampBumpF * mrF), math.floor(springF * mrF), math.floor(dampReboundF * mrF))
+            local mrF = isDriftMod and 7.61 or 1.0
+            local cBumpF = math.min(13700, math.floor(dampBumpF * mrF))
+            local cRebF = math.min(21350, math.floor(dampReboundF * mrF))
+            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springF * mrF), cBumpF, math.floor(springF * mrF), cRebF)
           else
-            local mrR = isDriftMod and 3.75 or 1.0
-            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springR * mrR), math.floor(dampBumpR * mrR), math.floor(springR * mrR), math.floor(dampReboundR * mrR))
+            local mrR = isDriftMod and 3.87 or 1.0
+            local cBumpR = math.min(6000, math.floor(dampBumpR * mrR))
+            local cRebR = math.min(9400, math.floor(dampReboundR * mrR))
+            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springR * mrR), cBumpR, math.floor(springR * mrR), cRebR)
           end
         end
       elseif (strContains(origin, "swaybar") or strContains(origin, "antiroll")) and base.spring >= 2000 and base.spring <= 350000 then

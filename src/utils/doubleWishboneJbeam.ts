@@ -10,8 +10,8 @@ export function buildDoubleWishboneJbeamFiles(
   const id = chassis.beamngInternalId;
 
   // Derived chassis-scaled suspension geometry (meters, BeamNG coordinates: +X left, -Y front, +Z up)
-  const yF = round4(-chassis.wheelbaseM * 0.5);
-  const yR = round4(chassis.wheelbaseM * 0.5);
+  const yF = round4(-chassis.wheelbaseM * 0.5); // -1.2500 on bx
+  const yR = round4(chassis.wheelbaseM * 0.5);  // +1.2500 on bx
 
   // Kingpin Inclination (KPI) + Caster -> exact 3D upper & lower balljoint coordinates
   const kpiRad = degToRad(tune.kpiDeg);
@@ -21,39 +21,44 @@ export function buildDoubleWishboneJbeamFiles(
   const camberRRad = degToRad(tune.rearCamberDeg);
   const toeRRad = degToRad(tune.rearToeDeg);
 
-  const zLBJ = 0.215;
-  const zUBJ = 0.505;
-  const dzKingpin = zUBJ - zLBJ; // 0.290 m
-  const xLBJ = 0.645;
+  // Stock BX spindle Z is 0.350m (F) and 0.325m (R); drop knuckle gives +95mm drop geometry
+  const zLBJ = 0.255;
+  const zUBJ = 0.54;
+  const dzKingpin = zUBJ - zLBJ; // 0.285 m
+  const xLBJ = 0.71;
   const xUBJ = round4(xLBJ - dzKingpin * Math.tan(kpiRad));
   const yLBJ = round4(yF - 0.135 * Math.tan(casterRad));
   const yUBJ = round4(yLBJ + dzKingpin * Math.tan(casterRad));
 
-  // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.278m clear of LCA & subframe
+  // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.315m clear of LCA & subframe
   const ackermannShift = (tune.ackermannPct / 100) * 0.026;
   const xTieOuter = round4(xLBJ - ackermannShift);
   const yTieOuter = round4(yF + 0.116);
-  const zTieOuter = 0.278;
+  const zTieOuter = 0.315;
 
   // Kingpin axis position at tie-rod height for accurate steering arm radius
   const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
   const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
   const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
 
-  // Wheel spindle hub nodes (fw1r/l inner, fw1rr/ll outer) with +15mm FD lock-clearance offset, tilted by front camber & static toe
-  const xHubIn = 0.67;
-  const xHubOut = 0.83;
-  const spindleLen = xHubOut - xHubIn;
-  const zHubCenter = 0.305;
-  const dzCamberF = (spindleLen * 0.5) * Math.sin(-camberFRad);
-  const dyToeF = (spindleLen * 0.5) * Math.sin(toeFRad);
+  // Front hub spindle (fw1r/l inner, fw1rr/ll outer): FD widebody WiseFab-style front drift track
+  const xHubInF = 0.665;
+  const xHubOutF = 0.875;
+  const spindleLenF = xHubOutF - xHubInF; // 0.210 m matching stock bx
+  const zHubCenterF = 0.35;
+  const dzCamberF = spindleLenF * 0.5 * Math.sin(-camberFRad);
+  const dyToeF = spindleLenF * 0.5 * Math.sin(toeFRad);
 
-  // Rear spindle hub nodes tilted by rear camber & static toe
-  const dzCamberR = (spindleLen * 0.5) * Math.sin(-camberRRad);
-  const dyToeR = (spindleLen * 0.5) * Math.sin(toeRRad);
+  // Rear hub spindle (rw1r/l inner, rw1rr/ll outer): +20mm drift track over stock bx (0.54/0.75)
+  const xHubInR = 0.56;
+  const xHubOutR = 0.77;
+  const spindleLenR = xHubOutR - xHubInR; // 0.210 m matching stock bx
+  const zHubCenterR = 0.325;
+  const dzCamberR = spindleLenR * 0.5 * Math.sin(-camberRRad);
+  const dyToeR = spindleLenR * 0.5 * Math.sin(toeRRad);
 
-  // Match tie-rod inner pivot (0.31m, z=0.278m) to LCA pivot X for zero bump-steer,
-  // raised 73mm above subframe rail (0.205m) and offset forward (yF + 0.060) for anti-toggle clearance
+  // Match tie-rod inner pivot (0.31m, z=0.315m) to LCA pivot X for zero bump-steer,
+  // raised 60mm above subframe rail (0.255m) and offset forward (yF + 0.060) for anti-toggle clearance
   const xRackMount = 0.31;
   const yRack = round4(yF + 0.06);
   const zRack = zTieOuter;
@@ -76,21 +81,21 @@ export function buildDoubleWishboneJbeamFiles(
   const hydroOutLimit = round4(1 + Math.min(0.42, outerExtendRatio));
   const wheelHalfLock = Math.round(tune.steeringWheelDeg / 2);
 
-  // Spring, damper, ARB, anti-squat & chassis rigidity values
+  // Spring, damper, ARB, anti-squat & chassis rigidity values (calibrated for BeamNG 2000 Hz solver stability)
   const frontSpringNm = Math.round(tune.frontSpringKn * 1000);
   const rearSpringNm = Math.round(tune.rearSpringKn * 1000);
-  const frontBumpDamp = Math.round(tune.frontSpringKn * 58);
-  const frontReboundDamp = Math.round(tune.frontSpringKn * 112);
-  const rearBumpDamp = Math.round(tune.rearSpringKn * 52);
-  const rearReboundDamp = Math.round(tune.rearSpringKn * 98);
-  const frontArbSpring = Math.round(28000 * (1 + (50 - tune.rearArbBiasPct) * 0.015));
-  const rearArbSpring = Math.round(24000 * (1 + (tune.rearArbBiasPct - 50) * 0.018));
-  const subframeSpring = Math.round(4501000 * Math.min(1.45, Math.max(0.85, tune.chassisRigidity)));
-  const rackDamp = Math.round(45 + tune.ffbDampingPct * 3.5);
+  const frontBumpDamp = Math.min(1750, Math.round(tune.frontSpringKn * 16));
+  const frontReboundDamp = Math.min(2750, Math.round(tune.frontSpringKn * 26));
+  const rearBumpDamp = Math.min(1550, Math.round(tune.rearSpringKn * 15));
+  const rearReboundDamp = Math.min(2450, Math.round(tune.rearSpringKn * 24));
+  const frontArbSpring = Math.round(24000 * (1 + (50 - tune.rearArbBiasPct) * 0.015));
+  const rearArbSpring = Math.round(20000 * (1 + (tune.rearArbBiasPct - 50) * 0.018));
+  const subframeSpring = Math.round(1251000 * Math.min(1.2, Math.max(0.85, tune.chassisRigidity)));
+  const rackDamp = Math.min(180, Math.round(35 + tune.ffbDampingPct * 2.2));
   const ffbGainScale = round4((tune.ffbStrengthPct / 100) * (0.9 + (tune.frontCasterDeg - 5) * 0.03));
 
   // Rear anti-squat pickup geometry (higher antiSquatPct raises front link pickup toward IC)
-  const zRearLinkFront = round4(0.21 + (tune.antiSquatPct / 100) * 0.14);
+  const zRearLinkFront = round4(0.25 + (tune.antiSquatPct / 100) * 0.12);
 
   const controllerCfg = {
     steerLockDeg: '$dm_steer_lock',
@@ -129,13 +134,13 @@ export function buildDoubleWishboneJbeamFiles(
         value: 6200,
       },
       slotType: `${id}_suspension_F`,
-      slots: [
-        ['type', 'default', 'description'],
-        [`${id}_driftmod_subframe_F`, `${id}_driftmod_tubular_subframe_F`, 'Front Subframe', { coreSlot: true }],
-        [`${id}_driftmod_steering_F`, `${id}_driftmod_rack_F`, 'Steering Rack', { coreSlot: true }],
-        [`${id}_driftmod_coilover_F`, `${id}_driftmod_coilover_F`, 'Front Coilovers', { coreSlot: true }],
-        [`${id}_driftmod_swaybar_F`, `${id}_driftmod_swaybar_F`, 'Front Sway Bar'],
-        [`${id}_driftmod_hub_F`, `${id}_driftmod_hub_F`, 'Front Drop-Knuckle Hubs', { coreSlot: true }],
+      slots2: [
+        ['name', 'allowTypes', 'denyTypes', 'default', 'description'],
+        [`${id}_driftmod_subframe_F`, [`${id}_driftmod_subframe_F`], [], `${id}_driftmod_tubular_subframe_F`, 'Front Subframe', { coreSlot: true }],
+        [`${id}_driftmod_steering_F`, [`${id}_driftmod_steering_F`], [], `${id}_driftmod_rack_F`, 'Steering Rack', { coreSlot: true }],
+        [`${id}_driftmod_coilover_F`, [`${id}_driftmod_coilover_F`], [], `${id}_driftmod_coilover_F`, 'Front Coilovers', { coreSlot: true }],
+        [`${id}_driftmod_swaybar_F`, [`${id}_driftmod_swaybar_F`], [], `${id}_driftmod_swaybar_F`, 'Front Sway Bar'],
+        [`${id}_driftmod_hub_F`, [`${id}_driftmod_hub_F`], [], `${id}_driftmod_hub_F`, 'Front Drop-Knuckle Hubs', { coreSlot: true }],
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
@@ -156,18 +161,20 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 5.5 },
+        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
         // Lower balljoints (LBJ)
         { group: ['driftmod_knuckle_FR', 'driftmod_lca_FR'] },
         ['fh1r', -xLBJ, yLBJ, zLBJ],
         { group: ['driftmod_knuckle_FL', 'driftmod_lca_FL'] },
         ['fh1l', xLBJ, yLBJ, zLBJ],
-        // Inboard LCA coilover clevis mounts (keeps spring & shock clear of UCA, knuckle, spindle & wheel)
+        // Inboard LCA coilover clevis mounts (keeps spring & shock clear of UCA, knuckle, spindle & +/-70deg tire barrel)
+        { nodeWeight: 15.0 },
         { group: ['driftmod_lca_FR', 'driftmod_coil_FR'] },
-        ['fsh1r', -0.475, round4(yF + 0.008), 0.226],
+        ['fsh1r', -0.455, round4(yF + 0.008), 0.264],
         { group: ['driftmod_lca_FL', 'driftmod_coil_FL'] },
-        ['fsh1l', 0.475, round4(yF + 0.008), 0.226],
+        ['fsh1l', 0.455, round4(yF + 0.008), 0.264],
         // Upper balljoints (UBJ - computed from KPI & Caster)
+        { nodeWeight: 7.5 },
         { group: ['driftmod_knuckle_FR', 'driftmod_uca_FR'] },
         ['fh2r', -xUBJ, yUBJ, zUBJ],
         { group: ['driftmod_knuckle_FL', 'driftmod_uca_FL'] },
@@ -175,26 +182,27 @@ export function buildDoubleWishboneJbeamFiles(
         // Tie-rod knuckle arms & raised upright ears (clear of tie-rod arc at +/-70 deg)
         { group: 'driftmod_knuckle_FR' },
         ['fh3r', -xTieOuter, yTieOuter, zTieOuter],
-        ['fh4r', -xLBJ, round4(yF - 0.055), 0.385],
-        ['fh5r', -xLBJ, round4(yF + 0.055), 0.385],
+        ['fh4r', -xLBJ, round4(yF - 0.055), 0.425],
+        ['fh5r', -xLBJ, round4(yF + 0.055), 0.425],
         { group: 'driftmod_knuckle_FL' },
         ['fh3l', xTieOuter, yTieOuter, zTieOuter],
-        ['fh4l', xLBJ, round4(yF - 0.055), 0.385],
-        ['fh5l', xLBJ, round4(yF + 0.055), 0.385],
+        ['fh4l', xLBJ, round4(yF - 0.055), 0.425],
+        ['fh5l', xLBJ, round4(yF + 0.055), 0.425],
         // Upper coilover tower anchor nodes + triangulated cowl brace apex
+        { nodeWeight: 15.0 },
         { group: ['driftmod_subframe_F', 'driftmod_coil_FR'] },
-        ['fc1r', -0.425, round4(yF + 0.008), 0.72],
+        ['fc1r', -0.34, round4(yF + 0.008), 0.745],
         { group: ['driftmod_subframe_F', 'driftmod_coil_FL'] },
-        ['fc1l', 0.425, round4(yF + 0.008), 0.72],
-        { group: 'driftmod_subframe_F' },
-        ['fc0', 0.0, round4(yF + 0.19), 0.73],
+        ['fc1l', 0.34, round4(yF + 0.008), 0.745],
+        { nodeWeight: 8.5, group: 'driftmod_subframe_F' },
+        ['fc0', 0.0, round4(yF + 0.18), 0.74],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        // Drop-knuckle rigid upright structure
+        // Drop-knuckle rigid upright structure (calibrated for 2000 Hz stability)
         { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
-        { beamSpring: 6501000, beamDamp: 130, beamDeform: 145000, beamStrength: 'FLT_MAX' },
+        { beamSpring: 1551000, beamDamp: 55, beamDeform: 145000, beamStrength: 'FLT_MAX' },
         ['fh1r', 'fh2r'], ['fh1l', 'fh2l'],
         ['fh1r', 'fh3r'], ['fh1l', 'fh3l'],
         ['fh2r', 'fh3r'], ['fh2l', 'fh3l'],
@@ -207,26 +215,33 @@ export function buildDoubleWishboneJbeamFiles(
         ['fh4r', 'fh5r'], ['fh4l', 'fh5l'],
 
         // Formula Drift Double Wishbone Lower A-Arms & inboard shock clevis triangle
-        { beamSpring: 6001000, beamDamp: 120, beamDeform: 135000, beamStrength: 420000 },
+        { beamSpring: 1501000, beamDamp: 55, beamDeform: 135000, beamStrength: 420000, dampCutoffHz: 500 },
         ['fx1r', 'fh1r'], ['fx2r', 'fh1r'],
         ['fx1l', 'fh1l'], ['fx2l', 'fh1l'],
         ['fsh1r', 'fx1r'], ['fsh1r', 'fx2r'], ['fsh1r', 'fh1r'],
         ['fsh1l', 'fx1l'], ['fsh1l', 'fx2l'], ['fsh1l', 'fh1l'],
 
-        // Formula Drift Double Wishbone Upper A-Arms (fu1/fu2 -> fh2, ~78% of LCA length)
-        { beamSpring: 5501000, beamDamp: 110, beamDeform: 125000, beamStrength: 380000 },
+        // Formula Drift Double Wishbone Upper A-Arms (fu1/fu2 -> fh2, ~78-81% of LCA length)
+        { beamSpring: 1501000, beamDamp: 55, beamDeform: 125000, beamStrength: 380000, dampCutoffHz: 500 },
         ['fu1r', 'fh2r'], ['fu2r', 'fh2r'],
         ['fu1l', 'fh2l'], ['fu2l', 'fh2l'],
 
+        // Suspension travel & anti-invert bounded limiters
+        { beamPrecompression: 1, beamType: '|BOUNDED', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: 0, beamDamp: 0, beamDeform: 45000, beamStrength: 400000, beamLimitSpring: 251000, beamLimitDamp: 250, dampCutoffHz: 500 },
+        ['fh1r', 'fu1r', { longBoundRange: 0.14, shortBoundRange: 0.14, boundZone: 0.03 }],
+        ['fh1l', 'fu1l', { longBoundRange: 0.14, shortBoundRange: 0.14, boundZone: 0.03 }],
+
         // Triangulated strut tower cross-brace & firewall V-brace (prevents cornering camber flex)
-        { beamSpring: 5401000, beamDamp: 115, beamDeform: 155000, beamStrength: 'FLT_MAX' },
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: 1251000, beamDamp: 50, beamDeform: 155000, beamStrength: 'FLT_MAX' },
         ['fc1r', 'fu1r'], ['fc1r', 'fu2r'], ['fc1r', 'fx4r'], ['fc1r', 'fc1l'],
         ['fc1l', 'fu1l'], ['fc1l', 'fu2l'], ['fc1l', 'fx4l'],
         ['fc1r', 'fx4l'], ['fc1l', 'fx4r'],
         ['fc1r', 'fc0'], ['fc1l', 'fc0'], ['fc0', 'fx2r'], ['fc0', 'fx2l'],
-        { optional: true },
-        ['fc1r', 'fs1r'], ['fc1r', 'f12rr'], ['fc1r', 'f12r'], ['fc1r', 'f5r'],
-        ['fc1l', 'fs1l'], ['fc1l', 'f12ll'], ['fc1l', 'f12l'], ['fc1l', 'f5l'],
+        { optional: true, beamSpring: 651000, beamDamp: 35 },
+        ['fc1r', 'fs1r'], ['fc1r', 'f12rr'], ['fc1r', 'f5r'], ['fc1r', 'f14rr'],
+        ['fc1l', 'fs1l'], ['fc1l', 'f12ll'], ['fc1l', 'f5l'], ['fc1l', 'f14ll'],
         ['fc0', 'f5r'], ['fc0', 'f5l'], ['fc0', 'f6r'], ['fc0', 'f6l'],
         { optional: false },
       ],
@@ -238,29 +253,33 @@ export function buildDoubleWishboneJbeamFiles(
         value: 850,
       },
       slotType: `${id}_driftmod_hub_F`,
-      slots: [
-        ['type', 'default', 'description'],
-        [`${id}_driftmod_wheeldata_F`, `${id}_driftmod_wheeldata_F`, 'Front Wheel Data', { coreSlot: true }],
-        [`${id}_driftmod_brake_F`, `${id}_driftmod_brake_F`, 'Front Drift Brakes', { coreSlot: true }],
-        ['wheel_F_5', 'steelwheel_01a_15x8_F', 'Front Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_F', y: 0, z: 0 } }],
+      slots2: [
+        ['name', 'allowTypes', 'denyTypes', 'default', 'description'],
+        [`${id}_driftmod_wheeldata_F`, [`${id}_driftmod_wheeldata_F`], [], `${id}_driftmod_wheeldata_F`, 'Front Wheel Data', { coreSlot: true }],
+        [`${id}_driftmod_brake_F`, [`${id}_driftmod_brake_F`], [], `${id}_driftmod_brake_F`, 'Front Drift Brakes', { coreSlot: true }],
+        ['wheel_F_5', ['wheel_F_5'], [], 'steelwheel_01a_15x7_F', 'Front Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_F+0.345', y: round4(yF + 0.005), z: zHubCenterF } }],
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { group: 'driftmod_hub_F', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 6.0 },
-        ['fw1r', -xHubIn, round4(yF - dyToeF), round4(zHubCenter - dzCamberF)],
-        ['fw1rr', -xHubOut, round4(yF + dyToeF), round4(zHubCenter + dzCamberF)],
-        ['fw1l', xHubIn, round4(yF - dyToeF), round4(zHubCenter - dzCamberF)],
-        ['fw1ll', xHubOut, round4(yF + dyToeF), round4(zHubCenter + dzCamberF)],
+        { group: 'driftmod_hub_F', selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
+        ['fw1r', -xHubInF, round4(yF - dyToeF), round4(zHubCenterF - dzCamberF)],
+        ['fw1rr', -xHubOutF, round4(yF + dyToeF), round4(zHubCenterF + dzCamberF)],
+        ['fw1l', xHubInF, round4(yF - dyToeF), round4(zHubCenterF - dzCamberF)],
+        ['fw1ll', xHubOutF, round4(yF + dyToeF), round4(zHubCenterF + dzCamberF)],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        { beamSpring: 6501000, beamDamp: 120, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        { beamSpring: 2101000, beamDamp: 60, beamDeform: 140000, beamStrength: 'FLT_MAX' },
         ['fw1r', 'fw1rr'], ['fw1l', 'fw1ll'],
-        ['fw1r', 'fh1r'], ['fw1r', 'fh2r'], ['fw1r', 'fh3r'], ['fw1r', 'fh4r'], ['fw1r', 'fh5r'],
+        { beamSpring: 1351000, beamDamp: 45, beamDeform: 99500, beamStrength: 270000 },
+        { breakGroup: 'wheel_FR' },
+        ['fw1r', 'fh1r', { name: 'axle_FR' }], ['fw1r', 'fh2r'], ['fw1r', 'fh3r'], ['fw1r', 'fh4r'], ['fw1r', 'fh5r'],
         ['fw1rr', 'fh1r'], ['fw1rr', 'fh2r'], ['fw1rr', 'fh3r'], ['fw1rr', 'fh4r'], ['fw1rr', 'fh5r'],
-        ['fw1l', 'fh1l'], ['fw1l', 'fh2l'], ['fw1l', 'fh3l'], ['fw1l', 'fh4l'], ['fw1l', 'fh5l'],
+        { breakGroup: 'wheel_FL' },
+        ['fw1l', 'fh1l', { name: 'axle_FL' }], ['fw1l', 'fh2l'], ['fw1l', 'fh3l'], ['fw1l', 'fh4l'], ['fw1l', 'fh5l'],
         ['fw1ll', 'fh1l'], ['fw1ll', 'fh2l'], ['fw1ll', 'fh3l'], ['fw1ll', 'fh4l'], ['fw1ll', 'fh5l'],
+        { breakGroup: '' },
       ],
     },
     [`${id}_driftmod_wheeldata_F`]: {
@@ -272,12 +291,18 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_wheeldata_F`,
       pressureWheels: [
         ['name', 'hubGroup', 'group', 'node1:', 'node2:', 'nodeS', 'nodeArm:', 'wheelDir'],
-        { disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
-        { brakeTorque: '$=$braketorque_F' },
-        { parkingTorque: 0 },
-        { propulsed: 0 },
-        ['FR', 'wheel_FR', 'tire_FR', 'fw1rr', 'fw1r', 9999, 'fh5r', 1],
-        ['FL', 'wheel_FL', 'tire_FL', 'fw1l', 'fw1ll', 9999, 'fh5l', -1],
+        { selfCollision: false, collision: true, disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
+        { brakeTorque: '$=$braketorque_F', parkingTorque: 0, propulsed: 0 },
+        { hubcapBreakGroup: 'hubcap_FR', hubcapGroup: 'hubcap_FR', axleBeams: ['axle_FR'] },
+        ['FR', 'wheel_FR', 'tire_FR', 'fw1rr', 'fw1r', 9999, 'fh5r', 1, { 'torqueCoupling:': 'fh1r', 'torqueArm:': 'fh4r', 'torqueArm2:': 'fw1rr', 'steerAxisUp:': 'fh2r', 'steerAxisDown:': 'fh1r' }],
+        { hubcapBreakGroup: 'hubcap_FL', hubcapGroup: 'hubcap_FL', axleBeams: ['axle_FL'] },
+        ['FL', 'wheel_FL', 'tire_FL', 'fw1ll', 'fw1l', 9999, 'fh5l', -1, { 'torqueCoupling:': 'fh1l', 'torqueArm:': 'fh4l', 'torqueArm2:': 'fw1ll', 'steerAxisUp:': 'fh2l', 'steerAxisDown:': 'fh1l' }],
+        { selfCollision: true, axleBeams: [], hubcapBreakGroup: '', hubcapGroup: '' },
+      ],
+      powertrain: [
+        ['type', 'name', 'inputName', 'inputIndex'],
+        ['shaft', 'wheelaxleFL', 'differential_F', 1, { connectedWheel: 'FL', breakTriggerBeam: 'axle_FL', uiName: 'Front Left Axle', friction: 0.94, dynamicFriction: 0.002 }],
+        ['shaft', 'wheelaxleFR', 'differential_F', 2, { connectedWheel: 'FR', breakTriggerBeam: 'axle_FR', uiName: 'Front Right Axle', friction: 0.94, dynamicFriction: 0.002 }],
       ],
     },
     [`${id}_driftmod_brake_F`]: {
@@ -316,38 +341,56 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 4.5 },
+        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 10.5 },
         { group: ['driftmod_subframe_F', 'driftmod_lca_FR'] },
-        ['fx1r', -0.31, round4(yF - 0.125), 0.205],
-        ['fx2r', -0.31, round4(yF + 0.195), 0.205],
+        ['fx1r', -0.31, round4(yF - 0.145), 0.255],
+        ['fx2r', -0.31, round4(yF + 0.175), 0.255],
         { group: ['driftmod_subframe_F', 'driftmod_lca_FL'] },
-        ['fx1l', 0.31, round4(yF - 0.125), 0.205],
-        ['fx2l', 0.31, round4(yF + 0.195), 0.205],
+        ['fx1l', 0.31, round4(yF - 0.145), 0.255],
+        ['fx2l', 0.31, round4(yF + 0.175), 0.255],
+        // Front engine mount rail nodes (matched to stock bx_engine)
+        { nodeWeight: 4.5, group: 'driftmod_subframe_F' },
+        ['fx6r', -0.23, round4(yF + 0.175), 0.255],
+        ['fx6l', 0.23, round4(yF + 0.175), 0.255],
+        { nodeWeight: 8.5 },
         { group: ['driftmod_subframe_F', 'driftmod_uca_FR', 'driftmod_coil_FR'] },
-        ['fu1r', -0.345, round4(yF - 0.13), 0.49],
+        ['fu1r', -0.345, round4(yF - 0.145), 0.515],
         { group: ['driftmod_subframe_F', 'driftmod_uca_FR'] },
-        ['fu2r', -0.345, round4(yF + 0.185), 0.49],
+        ['fu2r', -0.345, round4(yF + 0.145), 0.515],
         { group: ['driftmod_subframe_F', 'driftmod_uca_FL', 'driftmod_coil_FL'] },
-        ['fu1l', 0.345, round4(yF - 0.13), 0.49],
+        ['fu1l', 0.345, round4(yF - 0.145), 0.515],
         { group: ['driftmod_subframe_F', 'driftmod_uca_FL'] },
-        ['fu2l', 0.345, round4(yF + 0.185), 0.49],
+        ['fu2l', 0.345, round4(yF + 0.145), 0.515],
         { group: 'driftmod_subframe_F' },
         ['fx3r', -xRackMount, yRack, zRack],
         ['fx3l', xRackMount, yRack, zRack],
-        ['fx4r', -0.27, round4(yF - 0.11), 0.355],
-        ['fx4l', 0.27, round4(yF - 0.11), 0.355],
+        ['fx4r', -0.4, round4(yF - 0.05), 0.4],
+        ['fx4l', 0.4, round4(yF - 0.05), 0.4],
         { group: '' },
+      ],
+      rails: {
+        enginemountnodes: { links: ['fx2r', 'fx2l'], broken: [], looped: false, capped: true },
+      },
+      slidenodes: [
+        ['id:', 'railName', 'attached', 'fixToRail', 'tolerance', 'spring', 'strength', 'capStrength'],
+        ['fx6r', 'enginemountnodes', true, true, 0.0, 2501000, 'FLT_MAX', 'FLT_MAX'],
+        ['fx6l', 'enginemountnodes', true, true, 0.0, 2501000, 'FLT_MAX', 'FLT_MAX'],
       ],
       beams: [
         ['id1:', 'id2:'],
         { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
-        { beamSpring: subframeSpring, beamDamp: 110, beamDeform: 165000, beamStrength: 'FLT_MAX' },
+        { beamSpring: subframeSpring, beamDamp: 55, beamDeform: 165000, beamStrength: 'FLT_MAX' },
         // Lower subframe perimeter & X-bracing
         ['fx1r', 'fx1l'], ['fx2r', 'fx2l'], ['fx1r', 'fx2r'], ['fx1l', 'fx2l'],
         ['fx1r', 'fx2l'], ['fx1l', 'fx2r'],
+        // Engine mount nodes braced to lower & upper subframe
+        { beamSpring: 1001000, beamDamp: 50 },
+        ['fx6r', 'fx6l'], ['fx6r', 'fx2r'], ['fx6r', 'fx4r'], ['fx6r', 'fx3r'],
+        ['fx6l', 'fx2l'], ['fx6l', 'fx4l'], ['fx6l', 'fx3l'],
         // Steering rack mounts braced to lower & upper subframe
-        ['fx3r', 'fx3l'], ['fx3r', 'fx2r'], ['fx3r', 'fx1r'], ['fx3r', 'fx2l'],
-        ['fx3l', 'fx2l'], ['fx3l', 'fx1l'], ['fx3l', 'fx2r'],
+        { beamSpring: subframeSpring, beamDamp: 55 },
+        ['fx3r', 'fx3l'], ['fx3r', 'fx2r'], ['fx3r', 'fx1r'],
+        ['fx3l', 'fx2l'], ['fx3l', 'fx1l'],
         ['fx3r', 'fu2r'], ['fx3r', 'fu1r'], ['fx3l', 'fu2l'], ['fx3l', 'fu1l'],
         // Upper wishbone cradle braced to lower & crossmembers
         ['fu1r', 'fu2r'], ['fu1l', 'fu2l'], ['fu1r', 'fx1r'], ['fu2r', 'fx2r'],
@@ -355,18 +398,18 @@ export function buildDoubleWishboneJbeamFiles(
         ['fu1l', 'fx2l'], ['fu2l', 'fx1l'],
         ['fx4r', 'fx4l'], ['fx4r', 'fx1r'], ['fx4r', 'fu1r'], ['fx4r', 'fx3r'],
         ['fx4l', 'fx1l'], ['fx4l', 'fu1l'], ['fx4l', 'fx3l'],
-        // Chassis unibody tie-in beams (optional flags support all 5 chassis node variants cleanly)
-        { optional: true },
-        ['fx1r', 'f10rr'], ['fx1r', 'f10r'], ['fx1r', 'f11rr'], ['fx1r', 'f11r'], ['fx1r', 'f14rr'], ['fx1r', 'f14r'],
-        ['fx1l', 'f10ll'], ['fx1l', 'f10l'], ['fx1l', 'f11ll'], ['fx1l', 'f11l'], ['fx1l', 'f14ll'], ['fx1l', 'f14l'],
-        ['fx2r', 'f1r'], ['fx2r', 'f1rr'], ['fx2r', 'f2r'], ['fx2r', 'f5r'], ['fx2r', 'f10rr'], ['fx2r', 'f10r'],
-        ['fx2l', 'f1l'], ['fx2l', 'f1ll'], ['fx2l', 'f2l'], ['fx2l', 'f5l'], ['fx2l', 'f10ll'], ['fx2l', 'f10l'],
-        ['fu1r', 'f12rr'], ['fu1r', 'f12r'], ['fu1r', 'f15rr'], ['fu1r', 'fs1r'],
-        ['fu1l', 'f12ll'], ['fu1l', 'f12l'], ['fu1l', 'f15ll'], ['fu1l', 'fs1l'],
-        ['fu2r', 'f5r'], ['fu2r', 'f6r'], ['fu2r', 'fs1r'], ['fu2r', 'f12rr'], ['fu2r', 'f12r'],
-        ['fu2l', 'f5l'], ['fu2l', 'f6l'], ['fu2l', 'fs1l'], ['fu2l', 'f12ll'], ['fu2l', 'f12l'],
-        ['fx4r', 'f12rr'], ['fx4r', 'f12r'], ['fx4r', 'f10rr'], ['fx4r', 'f14rr'],
-        ['fx4l', 'f12ll'], ['fx4l', 'f12l'], ['fx4l', 'f10ll'], ['fx4l', 'f14ll'],
+        // Chassis unibody tie-in beams (all targets verified present in bx_body_coupe & bx_body_hatch)
+        { optional: true, beamSpring: 651000, beamDamp: 35 },
+        ['fx1r', 'f10rr'], ['fx1r', 'f11rr'], ['fx1r', 'f13rr'],
+        ['fx1l', 'f10ll'], ['fx1l', 'f11ll'], ['fx1l', 'f13ll'],
+        ['fx2r', 'f1r'], ['fx2r', 'f1rr'], ['fx2r', 'f10rr'],
+        ['fx2l', 'f1l'], ['fx2l', 'f1ll'], ['fx2l', 'f10ll'],
+        ['fu1r', 'f12rr'], ['fu1r', 'f14r'], ['fu1r', 'fs1r'],
+        ['fu1l', 'f12ll'], ['fu1l', 'f14l'], ['fu1l', 'fs1l'],
+        ['fu2r', 'f5r'], ['fu2r', 'fs1r'], ['fu2r', 'f14rr'],
+        ['fu2l', 'f5l'], ['fu2l', 'fs1l'], ['fu2l', 'f14ll'],
+        ['fx4r', 'f12rr'], ['fx4r', 'f10rr'],
+        ['fx4l', 'f12ll'], ['fx4l', 'f10ll'],
         { optional: false },
       ],
     },
@@ -383,49 +426,65 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 5.5 },
+        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 10.5 },
         { group: ['driftmod_subframe_F', 'driftmod_lca_FR'] },
-        ['fx1r', -0.31, round4(yF - 0.125), 0.205],
-        ['fx2r', -0.31, round4(yF + 0.195), 0.205],
+        ['fx1r', -0.31, round4(yF - 0.145), 0.255],
+        ['fx2r', -0.31, round4(yF + 0.175), 0.255],
         { group: ['driftmod_subframe_F', 'driftmod_lca_FL'] },
-        ['fx1l', 0.31, round4(yF - 0.125), 0.205],
-        ['fx2l', 0.31, round4(yF + 0.195), 0.205],
+        ['fx1l', 0.31, round4(yF - 0.145), 0.255],
+        ['fx2l', 0.31, round4(yF + 0.175), 0.255],
+        { nodeWeight: 4.5, group: 'driftmod_subframe_F' },
+        ['fx6r', -0.23, round4(yF + 0.175), 0.255],
+        ['fx6l', 0.23, round4(yF + 0.175), 0.255],
+        { nodeWeight: 9.0 },
         { group: ['driftmod_subframe_F', 'driftmod_uca_FR', 'driftmod_coil_FR'] },
-        ['fu1r', -0.345, round4(yF - 0.13), 0.49],
+        ['fu1r', -0.345, round4(yF - 0.145), 0.515],
         { group: ['driftmod_subframe_F', 'driftmod_uca_FR'] },
-        ['fu2r', -0.345, round4(yF + 0.185), 0.49],
+        ['fu2r', -0.345, round4(yF + 0.145), 0.515],
         { group: ['driftmod_subframe_F', 'driftmod_uca_FL', 'driftmod_coil_FL'] },
-        ['fu1l', 0.345, round4(yF - 0.13), 0.49],
+        ['fu1l', 0.345, round4(yF - 0.145), 0.515],
         { group: ['driftmod_subframe_F', 'driftmod_uca_FL'] },
-        ['fu2l', 0.345, round4(yF + 0.185), 0.49],
+        ['fu2l', 0.345, round4(yF + 0.145), 0.515],
         { group: 'driftmod_subframe_F' },
         ['fx3r', -xRackMount, yRack, zRack],
         ['fx3l', xRackMount, yRack, zRack],
-        ['fx4r', -0.27, round4(yF - 0.11), 0.355],
-        ['fx4l', 0.27, round4(yF - 0.11), 0.355],
+        ['fx4r', -0.4, round4(yF - 0.05), 0.4],
+        ['fx4l', 0.4, round4(yF - 0.05), 0.4],
         { group: '' },
+      ],
+      rails: {
+        enginemountnodes: { links: ['fx2r', 'fx2l'], broken: [], looped: false, capped: true },
+      },
+      slidenodes: [
+        ['id:', 'railName', 'attached', 'fixToRail', 'tolerance', 'spring', 'strength', 'capStrength'],
+        ['fx6r', 'enginemountnodes', true, true, 0.0, 2501000, 'FLT_MAX', 'FLT_MAX'],
+        ['fx6l', 'enginemountnodes', true, true, 0.0, 2501000, 'FLT_MAX', 'FLT_MAX'],
       ],
       beams: [
         ['id1:', 'id2:'],
         { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
-        { beamSpring: Math.round(subframeSpring * 0.85), beamDamp: 120, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        { beamSpring: Math.round(subframeSpring * 0.9), beamDamp: 55, beamDeform: 140000, beamStrength: 'FLT_MAX' },
         ['fx1r', 'fx1l'], ['fx2r', 'fx2l'], ['fx1r', 'fx2r'], ['fx1l', 'fx2l'],
         ['fx1r', 'fx2l'], ['fx1l', 'fx2r'],
-        ['fx3r', 'fx3l'], ['fx3r', 'fx2r'], ['fx3r', 'fx1r'], ['fx3r', 'fx2l'],
-        ['fx3l', 'fx2l'], ['fx3l', 'fx1l'], ['fx3l', 'fx2r'],
+        { beamSpring: 1001000, beamDamp: 50 },
+        ['fx6r', 'fx6l'], ['fx6r', 'fx2r'], ['fx6r', 'fx4r'], ['fx6r', 'fx3r'],
+        ['fx6l', 'fx2l'], ['fx6l', 'fx4l'], ['fx6l', 'fx3l'],
+        { beamSpring: Math.round(subframeSpring * 0.9), beamDamp: 55 },
+        ['fx3r', 'fx3l'], ['fx3r', 'fx2r'], ['fx3r', 'fx1r'],
+        ['fx3l', 'fx2l'], ['fx3l', 'fx1l'],
         ['fx3r', 'fu2r'], ['fx3r', 'fu1r'], ['fx3l', 'fu2l'], ['fx3l', 'fu1l'],
         ['fu1r', 'fu2r'], ['fu1l', 'fu2l'], ['fu1r', 'fx1r'], ['fu2r', 'fx2r'],
         ['fu1r', 'fx2r'], ['fu2r', 'fx1r'], ['fu1l', 'fx1l'], ['fu2l', 'fx2l'],
         ['fu1l', 'fx2l'], ['fu2l', 'fx1l'],
         ['fx4r', 'fx4l'], ['fx4r', 'fx1r'], ['fx4r', 'fu1r'], ['fx4r', 'fx3r'],
         ['fx4l', 'fx1l'], ['fx4l', 'fu1l'], ['fx4l', 'fx3l'],
-        { optional: true },
-        ['fx1r', 'f10rr'], ['fx1r', 'f10r'], ['fx1r', 'f11rr'], ['fx1r', 'f11r'],
-        ['fx1l', 'f10ll'], ['fx1l', 'f10l'], ['fx1l', 'f11ll'], ['fx1l', 'f11l'],
-        ['fx2r', 'f1r'], ['fx2r', 'f1rr'], ['fx2r', 'f5r'], ['fx2r', 'f10rr'],
-        ['fx2l', 'f1l'], ['fx2l', 'f1ll'], ['fx2l', 'f5l'], ['fx2l', 'f10ll'],
-        ['fu1r', 'f12rr'], ['fu1r', 'f12r'], ['fu1r', 'fs1r'],
-        ['fu1l', 'f12ll'], ['fu1l', 'f12l'], ['fu1l', 'fs1l'],
+        { optional: true, beamSpring: 651000, beamDamp: 35 },
+        ['fx1r', 'f10rr'], ['fx1r', 'f11rr'],
+        ['fx1l', 'f10ll'], ['fx1l', 'f11ll'],
+        ['fx2r', 'f1r'], ['fx2r', 'f1rr'], ['fx2r', 'f10rr'],
+        ['fx2l', 'f1l'], ['fx2l', 'f1ll'], ['fx2l', 'f10ll'],
+        ['fu1r', 'f12rr'], ['fu1r', 'fs1r'],
+        ['fu1l', 'f12ll'], ['fu1l', 'fs1l'],
         ['fu2r', 'f5r'], ['fu2r', 'fs1r'], ['fu2l', 'f5l'], ['fu2l', 'fs1l'],
         { optional: false },
       ],
@@ -456,10 +515,12 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       beams: [
         ['id1:', 'id2:'],
-        // Steering rack damper beams (smooths DD chatter without slowing hydro response)
-        { beamSpring: 0, beamDamp: rackDamp, beamDeform: 'FLT_MAX', beamStrength: 'FLT_MAX' },
+        // Steering rack damper beams (smooths DD chatter & full-lock shimmy with dampCutoffHz)
+        { beamSpring: 0, beamDamp: rackDamp, beamDeform: 'FLT_MAX', beamStrength: 'FLT_MAX', dampCutoffHz: 500 },
         ['fx3r', 'fh3r'],
         ['fx3l', 'fh3l'],
+        ['fh5r', 'fx2r'],
+        ['fh5l', 'fx2l'],
       ],
       hydros: [
         ['id1:', 'id2:'],
@@ -468,8 +529,8 @@ export function buildDoubleWishboneJbeamFiles(
           beamType: '|NORMAL',
           beamLongBound: 1.0,
           beamShortBound: 1.0,
-          beamSpring: 5201000,
-          beamDamp: 100,
+          beamSpring: 2201000,
+          beamDamp: 55,
           beamDeform: 120000,
           beamStrength: 280000,
           factor: -hydroRatio,
@@ -482,6 +543,9 @@ export function buildDoubleWishboneJbeamFiles(
         ['fx3r', 'fh3r', { factor: -hydroRatio, inLimit: hydroInLimit, outLimit: hydroOutLimit }],
         ['fx3l', 'fh3l', { factor: hydroRatio, inLimit: hydroInLimit, outLimit: hydroOutLimit }],
       ],
+      input: {
+        FFBcoef: `$=$ffbstrength*${round4(9 * ffbGainScale)}`,
+      },
     },
   };
 
@@ -501,10 +565,10 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
-        ['$dm_spring_F', 'range', 'N/m', 'DriftMod Coilovers', frontSpringNm, 35000, 110000, 'Front Spring Rate', 'Front coilover spring stiffness'],
-        ['$damp_bump_F', 'range', 'N/m/s', 'DriftMod Coilovers', frontBumpDamp, 2000, 10000, 'Front Bump Damping', 'Low-speed compression damping'],
-        ['$damp_rebound_F', 'range', 'N/m/s', 'DriftMod Coilovers', frontReboundDamp, 3500, 16000, 'Front Rebound Damping', 'Extension rebound control'],
-        ['$rideheight_F', 'range', '', 'DriftMod Coilovers', 1.02, 0.9, 1.14, 'Front Ride Height', 'Coilover perch precompression'],
+        ['$dm_spring_F', 'range', 'N/m', 'DriftMod Coilovers', frontSpringNm, 35000, 110000, 'Front Spring Rate', 'Front coilover wheel spring rate'],
+        ['$damp_bump_F', 'range', 'N/m/s', 'DriftMod Coilovers', frontBumpDamp, 600, 1800, 'Front Bump Damping', 'Low-speed compression wheel damping'],
+        ['$damp_rebound_F', 'range', 'N/m/s', 'DriftMod Coilovers', frontReboundDamp, 1000, 2800, 'Front Rebound Damping', 'Extension rebound wheel damping'],
+        ['$rideheight_F', 'range', '', 'DriftMod Coilovers', 1.04, 0.9, 1.14, 'Front Ride Height', 'Coilover perch precompression'],
       ],
       beams: [
         ['id1:', 'id2:'],
@@ -513,17 +577,18 @@ export function buildDoubleWishboneJbeamFiles(
           beamType: '|BOUNDED',
           beamLongBound: 1.0,
           beamShortBound: 1.0,
-          beamSpring: '$=$dm_spring_F*4.16',
-          beamDamp: '$=$damp_bump_F*4.16',
-          beamDampRebound: '$=$damp_rebound_F*4.16',
-          beamDampFast: '$=$damp_bump_F*2.08',
-          beamDampReboundFast: '$=$damp_rebound_F*2.08',
+          beamSpring: '$=$dm_spring_F*7.61',
+          beamDamp: '$=$damp_bump_F*7.61',
+          beamDampRebound: '$=$damp_rebound_F*7.61',
+          beamDampFast: '$=$damp_bump_F*3.8',
+          beamDampReboundFast: '$=$damp_rebound_F*3.8',
           beamDampVelocitySplit: 0.14,
-          beamLimitSpring: 2601000,
+          beamLimitSpring: 251000,
           beamLimitDamp: 1200,
-          longBoundRange: 0.065,
-          shortBoundRange: 0.065,
-          boundZone: 0.025,
+          longBoundRange: 0.052,
+          shortBoundRange: 0.05,
+          boundZone: 0.02,
+          dampCutoffHz: 400,
           beamDeform: 140000,
           beamStrength: 340000,
         },
@@ -546,9 +611,9 @@ export function buildDoubleWishboneJbeamFiles(
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
         ['$dm_spring_F', 'range', 'N/m', 'DriftMod Coilovers', 96000, 50000, 125000, 'Front Spring Rate', 'FD Pro front coilover wheel rate'],
-        ['$damp_bump_F', 'range', 'N/m/s', 'DriftMod Coilovers', 5600, 2500, 12000, 'Front Bump Damping', 'High-load compression damping'],
-        ['$damp_rebound_F', 'range', 'N/m/s', 'DriftMod Coilovers', 10800, 4000, 18000, 'Front Rebound Damping', 'Extension rebound control'],
-        ['$rideheight_F', 'range', '', 'DriftMod Coilovers', 1.01, 0.9, 1.14, 'Front Ride Height', 'Coilover perch precompression'],
+        ['$damp_bump_F', 'range', 'N/m/s', 'DriftMod Coilovers', 1550, 750, 1800, 'Front Bump Damping', 'High-load compression wheel damping'],
+        ['$damp_rebound_F', 'range', 'N/m/s', 'DriftMod Coilovers', 2500, 1200, 2800, 'Front Rebound Damping', 'Extension rebound wheel damping'],
+        ['$rideheight_F', 'range', '', 'DriftMod Coilovers', 1.03, 0.9, 1.14, 'Front Ride Height', 'Coilover perch precompression'],
       ],
       beams: [
         ['id1:', 'id2:'],
@@ -557,17 +622,18 @@ export function buildDoubleWishboneJbeamFiles(
           beamType: '|BOUNDED',
           beamLongBound: 1.0,
           beamShortBound: 1.0,
-          beamSpring: '$=$dm_spring_F*4.16',
-          beamDamp: '$=$damp_bump_F*4.16',
-          beamDampRebound: '$=$damp_rebound_F*4.16',
-          beamDampFast: '$=$damp_bump_F*2.08',
-          beamDampReboundFast: '$=$damp_rebound_F*2.08',
+          beamSpring: '$=$dm_spring_F*7.61',
+          beamDamp: '$=$damp_bump_F*7.61',
+          beamDampRebound: '$=$damp_rebound_F*7.61',
+          beamDampFast: '$=$damp_bump_F*3.8',
+          beamDampReboundFast: '$=$damp_rebound_F*3.8',
           beamDampVelocitySplit: 0.14,
-          beamLimitSpring: 2601000,
+          beamLimitSpring: 251000,
           beamLimitDamp: 1200,
-          longBoundRange: 0.06,
-          shortBoundRange: 0.06,
-          boundZone: 0.025,
+          longBoundRange: 0.05,
+          shortBoundRange: 0.048,
+          boundZone: 0.02,
+          dampCutoffHz: 400,
           beamDeform: 140000,
           beamStrength: 340000,
         },
@@ -584,17 +650,17 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_swaybar_F`,
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { group: 'driftmod_arb_F', selfCollision: false, collision: false, nodeWeight: 1.8 },
-        ['arbf1r', -0.46, yF, 0.25],
-        ['arbf1l', 0.46, yF, 0.25],
+        { group: 'driftmod_arb_F', selfCollision: false, collision: false, nodeWeight: 2.5 },
+        ['arbf1r', -0.46, yF, 0.28],
+        ['arbf1l', 0.46, yF, 0.28],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        { beamSpring: 1201000, beamDamp: 60, beamDeform: 90000, beamStrength: 'FLT_MAX' },
+        { beamSpring: 451000, beamDamp: 35, beamDeform: 90000, beamStrength: 'FLT_MAX' },
         ['arbf1r', 'fx1r'], ['arbf1r', 'fx2r'],
         ['arbf1l', 'fx1l'], ['arbf1l', 'fx2l'],
-        { beamSpring: frontArbSpring, beamDamp: 45 },
+        { beamSpring: frontArbSpring, beamDamp: 35 },
         ['arbf1r', 'fh1r'], ['arbf1l', 'fh1l'],
         ['arbf1r', 'arbf1l'],
       ],
@@ -610,13 +676,13 @@ export function buildDoubleWishboneJbeamFiles(
         value: 4800,
       },
       slotType: `${id}_suspension_R`,
-      slots: [
-        ['type', 'default', 'description'],
-        [`${id}_driftmod_subframe_R`, `${id}_driftmod_subframe_R`, 'Rear Subframe', { coreSlot: true }],
-        [`${id}_driftmod_coilover_R`, `${id}_driftmod_coilover_R`, 'Rear Coilovers', { coreSlot: true }],
-        [`${id}_driftmod_swaybar_R`, `${id}_driftmod_swaybar_R`, 'Rear Sway Bar'],
-        [`${id}_driftmod_hub_R`, `${id}_driftmod_hub_R`, 'Rear 5-Lug Hubs', { coreSlot: true }],
-        [`${id}_differential_R`, `${id}_driftmod_diff_R`, 'Rear Differential'],
+      slots2: [
+        ['name', 'allowTypes', 'denyTypes', 'default', 'description'],
+        [`${id}_driftmod_subframe_R`, [`${id}_driftmod_subframe_R`], [], `${id}_driftmod_subframe_R`, 'Rear Subframe', { coreSlot: true }],
+        [`${id}_driftmod_coilover_R`, [`${id}_driftmod_coilover_R`], [], `${id}_driftmod_coilover_R`, 'Rear Coilovers', { coreSlot: true }],
+        [`${id}_driftmod_swaybar_R`, [`${id}_driftmod_swaybar_R`], [], `${id}_driftmod_swaybar_R`, 'Rear Sway Bar'],
+        [`${id}_driftmod_hub_R`, [`${id}_driftmod_hub_R`], [], `${id}_driftmod_hub_R`, 'Rear 5-Lug Hubs', { coreSlot: true }],
+        [`${id}_differential_R`, [`${id}_differential_R`], [], `${id}_driftmod_diff_R`, 'Rear Differential'],
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
@@ -628,32 +694,44 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       flexbodies: [
         ['mesh', '[group]:', 'nonFlexMaterials'],
-        ['driftmod_arms_R', ['driftmod_subframe_R', 'driftmod_knuckle_R']],
-        ['driftmod_knuckle_R', ['driftmod_knuckle_R']],
+        ['driftmod_arms_RR', ['driftmod_subframe_R', 'driftmod_knuckle_RR']],
+        ['driftmod_arms_RL', ['driftmod_subframe_R', 'driftmod_knuckle_RL']],
+        ['driftmod_knuckle_RR', ['driftmod_knuckle_RR']],
+        ['driftmod_knuckle_RL', ['driftmod_knuckle_RL']],
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { group: 'driftmod_knuckle_R', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 5.5 },
-        ['rh1r', -0.65, yR, 0.215],
-        ['rh1l', 0.65, yR, 0.215],
+        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
+        { group: 'driftmod_knuckle_RR' },
+        ['rh1r', -0.635, yR, 0.245],
+        { group: 'driftmod_knuckle_RL' },
+        ['rh1l', 0.635, yR, 0.245],
         // Inboard rear lower arm shock clevis (keeps rear coilover clear of UCA, knuckle & spindle)
-        ['rsh1r', -0.495, round4(yR + 0.005), 0.225],
-        ['rsh1l', 0.495, round4(yR + 0.005), 0.225],
-        ['rh2r', -0.635, yR, 0.455],
-        ['rh2l', 0.635, yR, 0.455],
-        ['rh4r', -0.65, round4(yR - 0.085), 0.325],
-        ['rh4l', 0.65, round4(yR - 0.085), 0.325],
-        ['rh5r', -0.65, round4(yR + 0.105), 0.325],
-        ['rh5l', 0.65, round4(yR + 0.105), 0.325],
-        { group: 'driftmod_subframe_R' },
-        ['rc1r', -0.445, round4(yR + 0.005), 0.72],
-        ['rc1l', 0.445, round4(yR + 0.005), 0.72],
+        { nodeWeight: 10.0 },
+        { group: ['driftmod_knuckle_RR', 'driftmod_coil_RR'] },
+        ['rsh1r', -0.485, round4(yR + 0.005), 0.255],
+        { group: ['driftmod_knuckle_RL', 'driftmod_coil_RL'] },
+        ['rsh1l', 0.485, round4(yR + 0.005), 0.255],
+        { nodeWeight: 7.5 },
+        { group: 'driftmod_knuckle_RR' },
+        ['rh2r', -0.625, yR, 0.475],
+        ['rh4r', -0.635, round4(yR - 0.085), 0.345],
+        ['rh5r', -0.635, round4(yR + 0.105), 0.345],
+        { group: 'driftmod_knuckle_RL' },
+        ['rh2l', 0.625, yR, 0.475],
+        ['rh4l', 0.635, round4(yR - 0.085), 0.345],
+        ['rh5l', 0.635, round4(yR + 0.105), 0.345],
+        { nodeWeight: 10.5 },
+        { group: ['driftmod_subframe_R', 'driftmod_coil_RR'] },
+        ['rc1r', -0.45, round4(yR + 0.005), 0.745],
+        { group: ['driftmod_subframe_R', 'driftmod_coil_RL'] },
+        ['rc1l', 0.45, round4(yR + 0.005), 0.745],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
         { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
-        { beamSpring: 6501000, beamDamp: 130, beamDeform: 145000, beamStrength: 'FLT_MAX' },
+        { beamSpring: 1551000, beamDamp: 55, beamDeform: 145000, beamStrength: 'FLT_MAX' },
         ['rh1r', 'rh2r'], ['rh1l', 'rh2l'],
         ['rh1r', 'rh4r'], ['rh1l', 'rh4l'],
         ['rh2r', 'rh4r'], ['rh2l', 'rh4l'],
@@ -661,7 +739,7 @@ export function buildDoubleWishboneJbeamFiles(
         ['rh2r', 'rh5r'], ['rh2l', 'rh5l'],
         ['rh4r', 'rh5r'], ['rh4l', 'rh5l'],
         // Rear multi-link lower & anti-squat trailing arms + inboard shock clevis
-        { beamSpring: 5801000, beamDamp: 115, beamDeform: 135000, beamStrength: 420000 },
+        { beamSpring: 1501000, beamDamp: 55, beamDeform: 135000, beamStrength: 420000, dampCutoffHz: 500 },
         ['rx1r', 'rh1r'], ['rx2r', 'rh1r'], ['rx1r', 'rh4r'],
         ['rx1l', 'rh1l'], ['rx2l', 'rh1l'], ['rx1l', 'rh4l'],
         ['rsh1r', 'rx1r'], ['rsh1r', 'rx2r'], ['rsh1r', 'rh1r'],
@@ -669,13 +747,19 @@ export function buildDoubleWishboneJbeamFiles(
         // Rear upper camber & toe control links
         ['ru1r', 'rh2r'], ['ru2r', 'rh2r'], ['rx2r', 'rh5r'],
         ['ru1l', 'rh2l'], ['ru2l', 'rh2l'], ['rx2l', 'rh5l'],
-        // Rear shock tower bracing
-        { beamSpring: 4801000, beamDamp: 110, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        // Suspension travel & anti-invert bounded limiters
+        { beamPrecompression: 1, beamType: '|BOUNDED', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: 0, beamDamp: 0, beamDeform: 45000, beamStrength: 400000, beamLimitSpring: 251000, beamLimitDamp: 250, dampCutoffHz: 500 },
+        ['rh1r', 'ru1r', { longBoundRange: 0.14, shortBoundRange: 0.14, boundZone: 0.03 }],
+        ['rh1l', 'ru1l', { longBoundRange: 0.14, shortBoundRange: 0.14, boundZone: 0.03 }],
+        // Rear shock tower bracing (all unibody tie-in nodes verified present in coupe & hatch)
+        { beamPrecompression: 1, beamType: '|NORMAL', beamLongBound: 1.0, beamShortBound: 1.0 },
+        { beamSpring: 1251000, beamDamp: 50, beamDeform: 140000, beamStrength: 'FLT_MAX' },
         ['rc1r', 'ru1r'], ['rc1r', 'ru2r'], ['rc1r', 'rc1l'],
         ['rc1l', 'ru1l'], ['rc1l', 'ru2l'],
-        { optional: true },
-        ['rc1r', 'rs1r'], ['rc1r', 'r5r'], ['rc1r', 'r2r'],
-        ['rc1l', 'rs1l'], ['rc1l', 'r5l'], ['rc1l', 'r2l'],
+        { optional: true, beamSpring: 651000, beamDamp: 35 },
+        ['rc1r', 'r1rr'], ['rc1r', 'r1'], ['rc1r', 'r5rr'],
+        ['rc1l', 'r1ll'], ['rc1l', 'r1'], ['rc1l', 'r5ll'],
         { optional: false },
       ],
     },
@@ -692,32 +776,33 @@ export function buildDoubleWishboneJbeamFiles(
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { group: 'driftmod_subframe_R', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 4.8 },
+        { group: 'driftmod_subframe_R', selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 10.5 },
         ['rx1r', -0.33, round4(yR - 0.24), zRearLinkFront],
         ['rx1l', 0.33, round4(yR - 0.24), zRearLinkFront],
-        ['rx2r', -0.33, round4(yR + 0.18), 0.23],
-        ['rx2l', 0.33, round4(yR + 0.18), 0.23],
-        ['ru1r', -0.35, round4(yR - 0.175), 0.45],
-        ['ru1l', 0.35, round4(yR - 0.175), 0.45],
-        ['ru2r', -0.35, round4(yR + 0.175), 0.45],
-        ['ru2l', 0.35, round4(yR + 0.175), 0.45],
+        ['rx2r', -0.33, round4(yR + 0.18), 0.26],
+        ['rx2l', 0.33, round4(yR + 0.18), 0.26],
+        { nodeWeight: 8.5 },
+        ['ru1r', -0.35, round4(yR - 0.175), 0.47],
+        ['ru1l', 0.35, round4(yR - 0.175), 0.47],
+        ['ru2r', -0.35, round4(yR + 0.175), 0.47],
+        ['ru2l', 0.35, round4(yR + 0.175), 0.47],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        { beamSpring: subframeSpring, beamDamp: 115, beamDeform: 165000, beamStrength: 'FLT_MAX' },
+        { beamSpring: subframeSpring, beamDamp: 55, beamDeform: 165000, beamStrength: 'FLT_MAX' },
         ['rx1r', 'rx1l'], ['rx2r', 'rx2l'], ['rx1r', 'rx2r'], ['rx1l', 'rx2l'],
         ['rx1r', 'rx2l'], ['rx1l', 'rx2r'],
         ['ru1r', 'ru2r'], ['ru1l', 'ru2l'], ['ru1r', 'ru1l'], ['ru2r', 'ru2l'],
         ['ru1r', 'rx1r'], ['ru2r', 'rx2r'], ['ru1r', 'rx2r'], ['ru2r', 'rx1r'],
         ['ru1l', 'rx1l'], ['ru2l', 'rx2l'], ['ru1l', 'rx2l'], ['ru2l', 'rx1l'],
-        { optional: true },
-        ['rx1r', 'r1r'], ['rx1r', 'r1rr'], ['rx1r', 'r2r'],
-        ['rx1l', 'r1l'], ['rx1l', 'r1ll'], ['rx1l', 'r2l'],
-        ['rx2r', 'r2r'], ['rx2r', 'r3r'], ['rx2r', 'r5r'],
-        ['rx2l', 'r2l'], ['rx2l', 'r3l'], ['rx2l', 'r5l'],
-        ['ru1r', 'r5r'], ['ru1r', 'rs1r'], ['ru2r', 'r5r'], ['ru2r', 'rs1r'],
-        ['ru1l', 'r5l'], ['ru1l', 'rs1l'], ['ru2l', 'r5l'], ['ru2l', 'rs1l'],
+        { optional: true, beamSpring: 651000, beamDamp: 35 },
+        ['rx1r', 'f4r'], ['rx1r', 'f4rr'], ['rx1r', 'f9r'],
+        ['rx1l', 'f4l'], ['rx1l', 'f4ll'], ['rx1l', 'f9l'],
+        ['rx2r', 'r2'], ['rx2r', 'r2rr'], ['rx2r', 'r5rr'],
+        ['rx2l', 'r2'], ['rx2l', 'r2ll'], ['rx2l', 'r5ll'],
+        ['ru1r', 'f9r'], ['ru1r', 'r1rr'], ['ru2r', 'r5rr'], ['ru2r', 'r1rr'],
+        ['ru1l', 'f9l'], ['ru1l', 'r1ll'], ['ru2l', 'r5ll'], ['ru2l', 'r1ll'],
         { optional: false },
       ],
     },
@@ -730,14 +815,15 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_coilover_R`,
       flexbodies: [
         ['mesh', '[group]:', 'nonFlexMaterials'],
-        ['driftmod_coilover_R', ['driftmod_subframe_R', 'driftmod_knuckle_R']],
+        ['driftmod_coilover_RR', ['driftmod_coil_RR', 'driftmod_subframe_R']],
+        ['driftmod_coilover_RL', ['driftmod_coil_RL', 'driftmod_subframe_R']],
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
         ['$dm_spring_R', 'range', 'N/m', 'DriftMod Coilovers', rearSpringNm, 25000, 90000, 'Rear Spring Rate', 'Rear coilover wheel rate'],
-        ['$damp_bump_R', 'range', 'N/m/s', 'DriftMod Coilovers', rearBumpDamp, 1800, 9000, 'Rear Bump Damping', 'Rear compression damping'],
-        ['$damp_rebound_R', 'range', 'N/m/s', 'DriftMod Coilovers', rearReboundDamp, 3000, 14000, 'Rear Rebound Damping', 'Rear extension rebound control'],
-        ['$rideheight_R', 'range', '', 'DriftMod Coilovers', 1.0, 0.9, 1.12, 'Rear Ride Height', 'Rear coilover perch precompression'],
+        ['$damp_bump_R', 'range', 'N/m/s', 'DriftMod Coilovers', rearBumpDamp, 550, 1600, 'Rear Bump Damping', 'Rear compression wheel damping'],
+        ['$damp_rebound_R', 'range', 'N/m/s', 'DriftMod Coilovers', rearReboundDamp, 900, 2500, 'Rear Rebound Damping', 'Rear extension rebound wheel damping'],
+        ['$rideheight_R', 'range', '', 'DriftMod Coilovers', 1.04, 0.9, 1.12, 'Rear Ride Height', 'Rear coilover perch precompression'],
       ],
       beams: [
         ['id1:', 'id2:'],
@@ -746,17 +832,18 @@ export function buildDoubleWishboneJbeamFiles(
           beamType: '|BOUNDED',
           beamLongBound: 1.0,
           beamShortBound: 1.0,
-          beamSpring: '$=$dm_spring_R*3.75',
-          beamDamp: '$=$damp_bump_R*3.75',
-          beamDampRebound: '$=$damp_rebound_R*3.75',
-          beamDampFast: '$=$damp_bump_R*1.88',
-          beamDampReboundFast: '$=$damp_rebound_R*1.88',
+          beamSpring: '$=$dm_spring_R*3.87',
+          beamDamp: '$=$damp_bump_R*3.87',
+          beamDampRebound: '$=$damp_rebound_R*3.87',
+          beamDampFast: '$=$damp_bump_R*1.94',
+          beamDampReboundFast: '$=$damp_rebound_R*1.94',
           beamDampVelocitySplit: 0.14,
-          beamLimitSpring: 2401000,
-          beamLimitDamp: 1100,
+          beamLimitSpring: 251000,
+          beamLimitDamp: 1200,
           longBoundRange: 0.06,
           shortBoundRange: 0.055,
           boundZone: 0.025,
+          dampCutoffHz: 400,
           beamDeform: 140000,
           beamStrength: 340000,
         },
@@ -773,17 +860,17 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_swaybar_R`,
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { group: 'driftmod_arb_R', selfCollision: false, collision: false, nodeWeight: 1.6 },
-        ['arbr1r', -0.46, yR, 0.25],
-        ['arbr1l', 0.46, yR, 0.25],
+        { group: 'driftmod_arb_R', selfCollision: false, collision: false, nodeWeight: 2.5 },
+        ['arbr1r', -0.46, yR, 0.28],
+        ['arbr1l', 0.46, yR, 0.28],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        { beamSpring: 1101000, beamDamp: 55, beamDeform: 90000, beamStrength: 'FLT_MAX' },
+        { beamSpring: 451000, beamDamp: 35, beamDeform: 90000, beamStrength: 'FLT_MAX' },
         ['arbr1r', 'rx1r'], ['arbr1r', 'rx2r'],
         ['arbr1l', 'rx1l'], ['arbr1l', 'rx2l'],
-        { beamSpring: rearArbSpring, beamDamp: 40 },
+        { beamSpring: rearArbSpring, beamDamp: 35 },
         ['arbr1r', 'rh1r'], ['arbr1l', 'rh1l'],
         ['arbr1r', 'arbr1l'],
       ],
@@ -795,29 +882,33 @@ export function buildDoubleWishboneJbeamFiles(
         value: 750,
       },
       slotType: `${id}_driftmod_hub_R`,
-      slots: [
-        ['type', 'default', 'description'],
-        [`${id}_driftmod_wheeldata_R`, `${id}_driftmod_wheeldata_R`, 'Rear Wheel Data', { coreSlot: true }],
-        [`${id}_driftmod_brake_R`, `${id}_driftmod_brake_R`, 'Rear Drift Brakes & Hydro', { coreSlot: true }],
-        ['wheel_R_5', 'steelwheel_01a_15x8_R', 'Rear Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_R', y: 0, z: 0 } }],
+      slots2: [
+        ['name', 'allowTypes', 'denyTypes', 'default', 'description'],
+        [`${id}_driftmod_wheeldata_R`, [`${id}_driftmod_wheeldata_R`], [], `${id}_driftmod_wheeldata_R`, 'Rear Wheel Data', { coreSlot: true }],
+        [`${id}_driftmod_brake_R`, [`${id}_driftmod_brake_R`], [], `${id}_driftmod_brake_R`, 'Rear Drift Brakes & Hydro', { coreSlot: true }],
+        ['wheel_R_5', ['wheel_R_5'], [], 'steelwheel_01a_15x7_R', 'Rear Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_R+0.240', y: yR, z: zHubCenterR } }],
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { group: 'driftmod_hub_R', selfCollision: false, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 6.0 },
-        ['rw1r', -0.66, round4(yR - dyToeR), round4(zHubCenter - dzCamberR)],
-        ['rw1rr', -0.82, round4(yR + dyToeR), round4(zHubCenter + dzCamberR)],
-        ['rw1l', 0.66, round4(yR - dyToeR), round4(zHubCenter - dzCamberR)],
-        ['rw1ll', 0.82, round4(yR + dyToeR), round4(zHubCenter + dzCamberR)],
+        { group: 'driftmod_hub_R', selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
+        ['rw1r', -xHubInR, round4(yR - dyToeR), round4(zHubCenterR - dzCamberR)],
+        ['rw1rr', -xHubOutR, round4(yR + dyToeR), round4(zHubCenterR + dzCamberR)],
+        ['rw1l', xHubInR, round4(yR - dyToeR), round4(zHubCenterR - dzCamberR)],
+        ['rw1ll', xHubOutR, round4(yR + dyToeR), round4(zHubCenterR + dzCamberR)],
         { group: '' },
       ],
       beams: [
         ['id1:', 'id2:'],
-        { beamSpring: 6501000, beamDamp: 120, beamDeform: 140000, beamStrength: 'FLT_MAX' },
+        { beamSpring: 2101000, beamDamp: 60, beamDeform: 140000, beamStrength: 'FLT_MAX' },
         ['rw1r', 'rw1rr'], ['rw1l', 'rw1ll'],
-        ['rw1r', 'rh1r'], ['rw1r', 'rh2r'], ['rw1r', 'rh4r'], ['rw1r', 'rh5r'],
+        { beamSpring: 1351000, beamDamp: 45, beamDeform: 75000, beamStrength: 275000 },
+        { breakGroup: 'wheel_RR' },
+        ['rw1r', 'rh1r', { name: 'axle_RR' }], ['rw1r', 'rh2r'], ['rw1r', 'rh4r'], ['rw1r', 'rh5r'],
         ['rw1rr', 'rh1r'], ['rw1rr', 'rh2r'], ['rw1rr', 'rh4r'], ['rw1rr', 'rh5r'],
-        ['rw1l', 'rh1l'], ['rw1l', 'rh2l'], ['rw1l', 'rh4l'], ['rw1l', 'rh5l'],
+        { breakGroup: 'wheel_RL' },
+        ['rw1l', 'rh1l', { name: 'axle_RL' }], ['rw1l', 'rh2l'], ['rw1l', 'rh4l'], ['rw1l', 'rh5l'],
         ['rw1ll', 'rh1l'], ['rw1ll', 'rh2l'], ['rw1ll', 'rh4l'], ['rw1ll', 'rh5l'],
+        { breakGroup: '' },
       ],
     },
     [`${id}_driftmod_wheeldata_R`]: {
@@ -829,12 +920,18 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_wheeldata_R`,
       pressureWheels: [
         ['name', 'hubGroup', 'group', 'node1:', 'node2:', 'nodeS', 'nodeArm:', 'wheelDir'],
-        { disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
-        { brakeTorque: '$=$braketorque_R' },
-        { parkingTorque: 2800 },
-        { propulsed: 1 },
-        ['RR', 'wheel_RR', 'tire_RR', 'rw1rr', 'rw1r', 9999, 'rh5r', 1],
-        ['RL', 'wheel_RL', 'tire_RL', 'rw1l', 'rw1ll', 9999, 'rh5l', -1],
+        { selfCollision: false, collision: true, disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
+        { brakeTorque: '$=$braketorque_R', parkingTorque: 2800, propulsed: 1 },
+        { hubcapBreakGroup: 'hubcap_RR', hubcapGroup: 'hubcap_RR', axleBeams: ['axle_RR'] },
+        ['RR', 'wheel_RR', 'tire_RR', 'rw1rr', 'rw1r', 9999, 'rh5r', 1, { 'torqueCoupling:': 'rx1r', 'torqueArm:': 'rx2r', 'torqueArm2:': 'ru2r' }],
+        { hubcapBreakGroup: 'hubcap_RL', hubcapGroup: 'hubcap_RL', axleBeams: ['axle_RL'] },
+        ['RL', 'wheel_RL', 'tire_RL', 'rw1ll', 'rw1l', 9999, 'rh5l', -1, { 'torqueCoupling:': 'rx1l', 'torqueArm:': 'rx2l', 'torqueArm2:': 'ru2l' }],
+        { selfCollision: true, axleBeams: [], hubcapBreakGroup: '', hubcapGroup: '' },
+      ],
+      powertrain: [
+        ['type', 'name', 'inputName', 'inputIndex'],
+        ['shaft', 'spindleRL', 'wheelaxleRL', 1, { connectedWheel: 'RL', breakTriggerBeam: 'axle_RL', uiName: 'Rear Left Axle', friction: 0.94, dynamicFriction: 0.002 }],
+        ['shaft', 'spindleRR', 'wheelaxleRR', 1, { connectedWheel: 'RR', breakTriggerBeam: 'axle_RR', uiName: 'Rear Right Axle', friction: 0.94, dynamicFriction: 0.002 }],
       ],
     },
     [`${id}_driftmod_brake_R`]: {
@@ -846,8 +943,10 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_brake_R`,
       flexbodies: [
         ['mesh', '[group]:', 'nonFlexMaterials'],
-        ['driftmod_rotor_R', ['driftmod_knuckle_R']],
-        ['driftmod_brake_R', ['driftmod_knuckle_R']],
+        ['driftmod_rotor_RR', ['driftmod_knuckle_RR']],
+        ['driftmod_rotor_RL', ['driftmod_knuckle_RL']],
+        ['driftmod_brake_RR', ['driftmod_knuckle_RR']],
+        ['driftmod_brake_RL', ['driftmod_knuckle_RL']],
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
@@ -884,14 +983,14 @@ export function buildDoubleWishboneJbeamFiles(
           'wheelaxleRL',
           'differential_R',
           1,
-          { connectedWheel: 'RL', friction: 2, uiName: 'Rear Left Halfshaft' },
+          { friction: 2, uiName: 'Rear Left Halfshaft' },
         ],
         [
           'shaft',
           'wheelaxleRR',
           'differential_R',
           2,
-          { connectedWheel: 'RR', friction: 2, uiName: 'Rear Right Halfshaft' },
+          { friction: 2, uiName: 'Rear Right Halfshaft' },
         ],
       ],
     },
