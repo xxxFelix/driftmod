@@ -120,6 +120,7 @@ export interface LiveHudState {
   totalScore: number;
   bestDriftRun: number;
   clipZoneActive: string | null;
+  faultStatus?: 'SPINOUT' | 'BOGGED' | 'OFF_TRACK' | null;
 }
 
 export interface TelemetrySample {
