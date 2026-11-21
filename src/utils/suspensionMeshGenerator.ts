@@ -201,19 +201,36 @@ export function buildSuspensionMeshScene(
   const camberRRad = degToRad(tune.rearCamberDeg);
   const toeRRad = degToRad(tune.rearToeDeg);
 
-  const zLBJ = 0.255;
-  const zUBJ = 0.54;
-  const dzKingpin = zUBJ - zLBJ;
-  const xLBJ = 0.71;
+  // Pro-Drift Geometry Defaults (replaces hardcoded BX values)
+  // Lower Ball Joint (LBJ) and Upper Ball Joint (UBJ) positions
+  const zLBJ = 0.23;
+  const zUBJ = 0.56;
+  const dzKingpin = zUBJ - zLBJ; // 0.330 m
+  const xLBJ = 0.82;
   const xUBJ = xLBJ - dzKingpin * Math.tan(kpiRad);
-  const yLBJ = yF - 0.135 * Math.tan(casterRad);
+  const yLBJ = yF - 0.15 * Math.tan(casterRad);
   const yUBJ = yLBJ + dzKingpin * Math.tan(casterRad);
 
   // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.315m clear of LCA & subframe
-  const ackermannShift = (tune.ackermannPct / 100) * 0.026;
+  const ackermannShift = (tune.ackermannPct / 100) * 0.035; // Increased range for more realistic Ackermann
   const xTieOuter = xLBJ - ackermannShift;
   const yTieOuter = yF + 0.116;
   const zTieOuter = 0.315;
+
+  // Kingpin axis position at tie-rod height for accurate steering arm radius
+  const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+
+  // Kingpin axis position at tie-rod height for accurate steering arm radius
+  const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+
+  // Kingpin axis position at tie-rod height for accurate steering arm radius
+  const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
 
   const xHubInF = 0.665;
   const xHubOutF = 0.875;
@@ -222,10 +239,10 @@ export function buildSuspensionMeshScene(
   const dzCamberF = spindleLenF * 0.5 * Math.sin(-camberFRad);
   const dyToeF = spindleLenF * 0.5 * Math.sin(toeFRad);
 
-  const xHubInR = 0.56;
-  const xHubOutR = 0.77;
+  const xHubInR = 0.54;
+  const xHubOutR = 0.75;
   const spindleLenR = xHubOutR - xHubInR;
-  const zHubCenterR = 0.325;
+  const zHubCenterR = 0.32;
   const dzCamberR = spindleLenR * 0.5 * Math.sin(-camberRRad);
   const dyToeR = spindleLenR * 0.5 * Math.sin(toeRRad);
 

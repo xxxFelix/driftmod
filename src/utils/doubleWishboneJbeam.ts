@@ -21,17 +21,18 @@ export function buildDoubleWishboneJbeamFiles(
   const camberRRad = degToRad(tune.rearCamberDeg);
   const toeRRad = degToRad(tune.rearToeDeg);
 
-  // Stock BX spindle Z is 0.350m (F) and 0.325m (R); drop knuckle gives +95mm drop geometry
-  const zLBJ = 0.255;
-  const zUBJ = 0.54;
-  const dzKingpin = zUBJ - zLBJ; // 0.285 m
-  const xLBJ = 0.71;
+  // Pro-Drift Geometry Defaults (replaces hardcoded BX values)
+  // Lower Ball Joint (LBJ) and Upper Ball Joint (UBJ) positions
+  const zLBJ = 0.23;
+  const zUBJ = 0.56;
+  const dzKingpin = zUBJ - zLBJ; // 0.330 m
+  const xLBJ = 0.82;
   const xUBJ = round4(xLBJ - dzKingpin * Math.tan(kpiRad));
-  const yLBJ = round4(yF - 0.135 * Math.tan(casterRad));
+  const yLBJ = round4(yF - 0.15 * Math.tan(casterRad));
   const yUBJ = round4(yLBJ + dzKingpin * Math.tan(casterRad));
 
   // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.315m clear of LCA & subframe
-  const ackermannShift = (tune.ackermannPct / 100) * 0.026;
+  const ackermannShift = (tune.ackermannPct / 100) * 0.035; // Increased range for more realistic Ackermann
   const xTieOuter = round4(xLBJ - ackermannShift);
   const yTieOuter = round4(yF + 0.116);
   const zTieOuter = 0.315;
@@ -51,10 +52,10 @@ export function buildDoubleWishboneJbeamFiles(
   const dyToeF = spindleLenF * 0.5 * Math.sin(toeFRad);
 
   // Rear hub spindle (rw1r/l inner, rw1rr/ll outer): +20mm drift track over stock bx (0.54/0.75)
-  const xHubInR = 0.56;
-  const xHubOutR = 0.77;
+  const xHubInR = 0.54;
+  const xHubOutR = 0.75;
   const spindleLenR = xHubOutR - xHubInR; // 0.210 m matching stock bx
-  const zHubCenterR = 0.325;
+  const zHubCenterR = 0.32;
   const dzCamberR = spindleLenR * 0.5 * Math.sin(-camberRRad);
   const dyToeR = spindleLenR * 0.5 * Math.sin(toeRRad);
 
