@@ -397,7 +397,7 @@
         "beamSpring": 1551000,
         "beamDamp": 55,
         "beamDeform": 145000,
-        "beamStrength": "FLT_MAX"
+        "beamStrength": 1000000
       },
       [
         "fh1r",
@@ -592,7 +592,7 @@
         "beamSpring": 1251000,
         "beamDamp": 50,
         "beamDeform": 155000,
-        "beamStrength": "FLT_MAX"
+        "beamStrength": 1000000
       },
       [
         "fc1r",
