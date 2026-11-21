@@ -217,21 +217,6 @@ export function buildSuspensionMeshScene(
   const yTieOuter = yF + 0.116;
   const zTieOuter = 0.315;
 
-  // Kingpin axis position at tie-rod height for accurate steering arm radius
-  const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
-  const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
-  const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
-
-  // Kingpin axis position at tie-rod height for accurate steering arm radius
-  const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
-  const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
-  const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
-
-  // Kingpin axis position at tie-rod height for accurate steering arm radius
-  const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
-  const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
-  const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
-
   const xHubInF = 0.665;
   const xHubOutF = 0.875;
   const spindleLenF = xHubOutF - xHubInF;
