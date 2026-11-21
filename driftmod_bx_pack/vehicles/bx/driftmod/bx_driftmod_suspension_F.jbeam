@@ -1,0 +1,1238 @@
+{
+  "bx_driftmod_dw_suspension_F": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Double Wishbone Front Suspension (64deg / 6.2 KPI)",
+      "value": 6200
+    },
+    "slotType": "bx_suspension_F",
+    "slots2": [
+      [
+        "name",
+        "allowTypes",
+        "denyTypes",
+        "default",
+        "description"
+      ],
+      [
+        "bx_driftmod_subframe_F",
+        [
+          "bx_driftmod_subframe_F"
+        ],
+        [],
+        "bx_driftmod_tubular_subframe_F",
+        "Front Subframe",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_steering_F",
+        [
+          "bx_driftmod_steering_F"
+        ],
+        [],
+        "bx_driftmod_rack_F",
+        "Steering Rack",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_coilover_F",
+        [
+          "bx_driftmod_coilover_F"
+        ],
+        [],
+        "bx_driftmod_coilover_F",
+        "Front Coilovers",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_swaybar_F",
+        [
+          "bx_driftmod_swaybar_F"
+        ],
+        [],
+        "bx_driftmod_swaybar_F",
+        "Front Sway Bar"
+      ],
+      [
+        "bx_driftmod_hub_F",
+        [
+          "bx_driftmod_hub_F"
+        ],
+        [],
+        "bx_driftmod_hub_F",
+        "Front Drop-Knuckle Hubs",
+        {
+          "coreSlot": true
+        }
+      ]
+    ],
+    "variables": [
+      [
+        "name",
+        "type",
+        "unit",
+        "category",
+        "default",
+        "min",
+        "max",
+        "title",
+        "description"
+      ],
+      [
+        "$trackoffset_F",
+        "range",
+        "+m",
+        "DriftMod Alignment",
+        0,
+        -0.04,
+        0.06,
+        "Front Track Offset",
+        "Adjusts front hub offset"
+      ],
+      [
+        "$dm_camber_F",
+        "range",
+        "deg",
+        "DriftMod Alignment",
+        -5,
+        -8,
+        0,
+        "Front Camber (Ref)",
+        "Baked knuckle camber angle"
+      ],
+      [
+        "$dm_cage_rigidity",
+        "range",
+        "x",
+        "DriftMod Chassis",
+        1.25,
+        0.8,
+        1.5,
+        "Chromoly Rigidity",
+        "Front chassis/cage stiffness multiplier"
+      ],
+      [
+        "$dm_brake_bias",
+        "range",
+        "%",
+        "DriftMod Brakes",
+        65,
+        50,
+        75,
+        "Front Brake Bias",
+        "Dual-master front/rear brake split"
+      ]
+    ],
+    "controller": [
+      [
+        "fileName"
+      ],
+      [
+        "driftmod",
+        {
+          "steerLockDeg": "$dm_steer_lock",
+          "steerSpeed": "$dm_steer_speed",
+          "steerWheelDeg": "$dm_wheel_deg",
+          "ffbStrengthPct": "$dm_ffb_gain",
+          "ffbDampingPct": "$dm_ffb_damp",
+          "ackermannPct": 0,
+          "kpiDeg": 6.2,
+          "casterDeg": 7.8,
+          "camberF": -5,
+          "camberR": -0.4,
+          "toeF": -0.2,
+          "toeR": 0.3,
+          "springF": "$dm_spring_F",
+          "springR": "$dm_spring_R",
+          "arbBiasR": "$dm_arb_bias_R",
+          "antiSquatPct": 56,
+          "frontWeightPct": 50.5,
+          "cageRigidity": "$dm_cage_rigidity",
+          "rearTireWidthMm": 265,
+          "rearTirePsi": "$dm_rear_psi",
+          "rearTireGrip": 0.94,
+          "brakeBiasPct": "$dm_brake_bias",
+          "lsdLockPct": "$dm_lsd_lock",
+          "finalDriveRatio": "$dm_final_drive",
+          "turboBoostPsi": "$dm_boost_psi"
+        }
+      ]
+    ],
+    "flexbodies": [
+      [
+        "mesh",
+        "[group]:",
+        "nonFlexMaterials"
+      ],
+      [
+        "driftmod_lca_FR",
+        [
+          "driftmod_lca_FR"
+        ]
+      ],
+      [
+        "driftmod_lca_FL",
+        [
+          "driftmod_lca_FL"
+        ]
+      ],
+      [
+        "driftmod_uca_FR",
+        [
+          "driftmod_uca_FR"
+        ]
+      ],
+      [
+        "driftmod_uca_FL",
+        [
+          "driftmod_uca_FL"
+        ]
+      ],
+      [
+        "driftmod_knuckle_FR",
+        [
+          "driftmod_knuckle_FR"
+        ]
+      ],
+      [
+        "driftmod_knuckle_FL",
+        [
+          "driftmod_knuckle_FL"
+        ]
+      ]
+    ],
+    "nodes": [
+      [
+        "id",
+        "posX",
+        "posY",
+        "posZ"
+      ],
+      {
+        "selfCollision": false,
+        "collision": false,
+        "nodeMaterial": "|NM_METAL",
+        "frictionCoef": 0.5,
+        "nodeWeight": 7.5
+      },
+      {
+        "group": [
+          "driftmod_knuckle_FR",
+          "driftmod_lca_FR"
+        ]
+      },
+      [
+        "fh1r",
+        -0.71,
+        -1.2685,
+        0.255
+      ],
+      {
+        "group": [
+          "driftmod_knuckle_FL",
+          "driftmod_lca_FL"
+        ]
+      },
+      [
+        "fh1l",
+        0.71,
+        -1.2685,
+        0.255
+      ],
+      {
+        "nodeWeight": 15
+      },
+      {
+        "group": [
+          "driftmod_lca_FR",
+          "driftmod_coil_FR"
+        ]
+      },
+      [
+        "fsh1r",
+        -0.455,
+        -1.242,
+        0.264
+      ],
+      {
+        "group": [
+          "driftmod_lca_FL",
+          "driftmod_coil_FL"
+        ]
+      },
+      [
+        "fsh1l",
+        0.455,
+        -1.242,
+        0.264
+      ],
+      {
+        "nodeWeight": 7.5
+      },
+      {
+        "group": [
+          "driftmod_knuckle_FR",
+          "driftmod_uca_FR"
+        ]
+      },
+      [
+        "fh2r",
+        -0.679,
+        -1.2295,
+        0.54
+      ],
+      {
+        "group": [
+          "driftmod_knuckle_FL",
+          "driftmod_uca_FL"
+        ]
+      },
+      [
+        "fh2l",
+        0.679,
+        -1.2295,
+        0.54
+      ],
+      {
+        "group": "driftmod_knuckle_FR"
+      },
+      [
+        "fh3r",
+        -0.71,
+        -1.134,
+        0.315
+      ],
+      [
+        "fh4r",
+        -0.71,
+        -1.305,
+        0.425
+      ],
+      [
+        "fh5r",
+        -0.71,
+        -1.195,
+        0.425
+      ],
+      {
+        "group": "driftmod_knuckle_FL"
+      },
+      [
+        "fh3l",
+        0.71,
+        -1.134,
+        0.315
+      ],
+      [
+        "fh4l",
+        0.71,
+        -1.305,
+        0.425
+      ],
+      [
+        "fh5l",
+        0.71,
+        -1.195,
+        0.425
+      ],
+      {
+        "nodeWeight": 15
+      },
+      {
+        "group": [
+          "driftmod_subframe_F",
+          "driftmod_coil_FR"
+        ]
+      },
+      [
+        "fc1r",
+        -0.34,
+        -1.242,
+        0.745
+      ],
+      {
+        "group": [
+          "driftmod_subframe_F",
+          "driftmod_coil_FL"
+        ]
+      },
+      [
+        "fc1l",
+        0.34,
+        -1.242,
+        0.745
+      ],
+      {
+        "nodeWeight": 8.5,
+        "group": "driftmod_subframe_F"
+      },
+      [
+        "fc0",
+        0,
+        -1.07,
+        0.74
+      ],
+      {
+        "group": ""
+      }
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|NORMAL",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamSpring": 1551000,
+        "beamDamp": 55,
+        "beamDeform": 145000,
+        "beamStrength": "FLT_MAX"
+      },
+      [
+        "fh1r",
+        "fh2r"
+      ],
+      [
+        "fh1l",
+        "fh2l"
+      ],
+      [
+        "fh1r",
+        "fh3r"
+      ],
+      [
+        "fh1l",
+        "fh3l"
+      ],
+      [
+        "fh2r",
+        "fh3r"
+      ],
+      [
+        "fh2l",
+        "fh3l"
+      ],
+      [
+        "fh1r",
+        "fh4r"
+      ],
+      [
+        "fh1l",
+        "fh4l"
+      ],
+      [
+        "fh2r",
+        "fh4r"
+      ],
+      [
+        "fh2l",
+        "fh4l"
+      ],
+      [
+        "fh3r",
+        "fh4r"
+      ],
+      [
+        "fh3l",
+        "fh4l"
+      ],
+      [
+        "fh1r",
+        "fh5r"
+      ],
+      [
+        "fh1l",
+        "fh5l"
+      ],
+      [
+        "fh2r",
+        "fh5r"
+      ],
+      [
+        "fh2l",
+        "fh5l"
+      ],
+      [
+        "fh3r",
+        "fh5r"
+      ],
+      [
+        "fh3l",
+        "fh5l"
+      ],
+      [
+        "fh4r",
+        "fh5r"
+      ],
+      [
+        "fh4l",
+        "fh5l"
+      ],
+      {
+        "beamSpring": 1501000,
+        "beamDamp": 55,
+        "beamDeform": 135000,
+        "beamStrength": 420000,
+        "dampCutoffHz": 500
+      },
+      [
+        "fx1r",
+        "fh1r"
+      ],
+      [
+        "fx2r",
+        "fh1r"
+      ],
+      [
+        "fx1l",
+        "fh1l"
+      ],
+      [
+        "fx2l",
+        "fh1l"
+      ],
+      [
+        "fsh1r",
+        "fx1r"
+      ],
+      [
+        "fsh1r",
+        "fx2r"
+      ],
+      [
+        "fsh1r",
+        "fh1r"
+      ],
+      [
+        "fsh1l",
+        "fx1l"
+      ],
+      [
+        "fsh1l",
+        "fx2l"
+      ],
+      [
+        "fsh1l",
+        "fh1l"
+      ],
+      {
+        "beamSpring": 1501000,
+        "beamDamp": 55,
+        "beamDeform": 125000,
+        "beamStrength": 380000,
+        "dampCutoffHz": 500
+      },
+      [
+        "fu1r",
+        "fh2r"
+      ],
+      [
+        "fu2r",
+        "fh2r"
+      ],
+      [
+        "fu1l",
+        "fh2l"
+      ],
+      [
+        "fu2l",
+        "fh2l"
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|BOUNDED",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamSpring": 0,
+        "beamDamp": 0,
+        "beamDeform": 45000,
+        "beamStrength": 400000,
+        "beamLimitSpring": 251000,
+        "beamLimitDamp": 250,
+        "dampCutoffHz": 500
+      },
+      [
+        "fh1r",
+        "fu1r",
+        {
+          "longBoundRange": 0.14,
+          "shortBoundRange": 0.14,
+          "boundZone": 0.03
+        }
+      ],
+      [
+        "fh1l",
+        "fu1l",
+        {
+          "longBoundRange": 0.14,
+          "shortBoundRange": 0.14,
+          "boundZone": 0.03
+        }
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|NORMAL",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamSpring": 1251000,
+        "beamDamp": 50,
+        "beamDeform": 155000,
+        "beamStrength": "FLT_MAX"
+      },
+      [
+        "fc1r",
+        "fu1r"
+      ],
+      [
+        "fc1r",
+        "fu2r"
+      ],
+      [
+        "fc1r",
+        "fx4r"
+      ],
+      [
+        "fc1r",
+        "fc1l"
+      ],
+      [
+        "fc1l",
+        "fu1l"
+      ],
+      [
+        "fc1l",
+        "fu2l"
+      ],
+      [
+        "fc1l",
+        "fx4l"
+      ],
+      [
+        "fc1r",
+        "fx4l"
+      ],
+      [
+        "fc1l",
+        "fx4r"
+      ],
+      [
+        "fc1r",
+        "fc0"
+      ],
+      [
+        "fc1l",
+        "fc0"
+      ],
+      [
+        "fc0",
+        "fx2r"
+      ],
+      [
+        "fc0",
+        "fx2l"
+      ],
+      [
+        "fc1r",
+        "fu1l"
+      ],
+      [
+        "fc1l",
+        "fu1r"
+      ],
+      [
+        "fc1r",
+        "fu2l"
+      ],
+      [
+        "fc1l",
+        "fu2r"
+      ],
+      [
+        "fc1r",
+        "fx1r"
+      ],
+      [
+        "fc1l",
+        "fx1l"
+      ],
+      [
+        "fc1r",
+        "fx2r"
+      ],
+      [
+        "fc1l",
+        "fx2l"
+      ],
+      [
+        "fc0",
+        "fu2r"
+      ],
+      [
+        "fc0",
+        "fu2l"
+      ],
+      [
+        "fc0",
+        "fu1r"
+      ],
+      [
+        "fc0",
+        "fu1l"
+      ],
+      {
+        "optional": true,
+        "beamSpring": 1001000,
+        "beamDamp": 50,
+        "beamDeform": 45000,
+        "beamStrength": 350000
+      },
+      [
+        "fc1r",
+        "fs1r"
+      ],
+      [
+        "fc1r",
+        "f14rr"
+      ],
+      [
+        "fc1l",
+        "fs1l"
+      ],
+      [
+        "fc1l",
+        "f14ll"
+      ],
+      [
+        "fc0",
+        "f5r"
+      ],
+      [
+        "fc0",
+        "f5l"
+      ],
+      [
+        "fc0",
+        "f6r"
+      ],
+      [
+        "fc0",
+        "f6l"
+      ],
+      [
+        "fs1r",
+        "fs1l"
+      ],
+      {
+        "beamType": "|NORMAL",
+        "optional": false
+      }
+    ]
+  },
+  "bx_driftmod_hub_F": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod 5-Lug Drop-Knuckle Front Hubs",
+      "value": 850
+    },
+    "slotType": "bx_driftmod_hub_F",
+    "slots2": [
+      [
+        "name",
+        "allowTypes",
+        "denyTypes",
+        "default",
+        "description"
+      ],
+      [
+        "bx_driftmod_wheeldata_F",
+        [
+          "bx_driftmod_wheeldata_F"
+        ],
+        [],
+        "bx_driftmod_wheeldata_F",
+        "Front Wheel Data",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_brake_F",
+        [
+          "bx_driftmod_brake_F"
+        ],
+        [],
+        "bx_driftmod_brake_F",
+        "Front Drift Brakes",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "wheel_F_5",
+        [
+          "wheel_F_5"
+        ],
+        [],
+        "steelwheel_01a_15x7_F",
+        "Front Wheels (5-Lug)",
+        {
+          "nodeOffset": {
+            "x": "$=$trackoffset_F+0.345",
+            "y": -1.245,
+            "z": 0.35
+          }
+        }
+      ]
+    ],
+    "nodes": [
+      [
+        "id",
+        "posX",
+        "posY",
+        "posZ"
+      ],
+      {
+        "selfCollision": false,
+        "collision": false,
+        "nodeMaterial": "|NM_METAL",
+        "frictionCoef": 0.5,
+        "nodeWeight": 7.5
+      },
+      {
+        "group": "wheelhub_FR"
+      },
+      [
+        "fw1r",
+        -0.665,
+        -1.2496,
+        0.3408
+      ],
+      [
+        "fw1rr",
+        -0.875,
+        -1.2504,
+        0.3592
+      ],
+      {
+        "group": "wheelhub_FL"
+      },
+      [
+        "fw1l",
+        0.665,
+        -1.2496,
+        0.3408
+      ],
+      [
+        "fw1ll",
+        0.875,
+        -1.2504,
+        0.3592
+      ],
+      {
+        "group": ""
+      }
+    ],
+    "pressureWheels": [
+      [
+        "name",
+        "hubGroup",
+        "group",
+        "node1:",
+        "node2:",
+        "nodeS",
+        "nodeArm:",
+        "wheelDir"
+      ],
+      {
+        "disableMeshBreaking": false,
+        "disableHubMeshBreaking": false,
+        "enableHubcaps": false,
+        "hasTire": false
+      },
+      {
+        "hubRadius": 0.08
+      },
+      {
+        "wheelOffset": -0.05
+      },
+      {
+        "hubWidth": 0.05
+      },
+      {
+        "numRays": 8
+      },
+      {
+        "hubTreadBeamSpring": 501000,
+        "hubTreadBeamDamp": 5
+      },
+      {
+        "hubPeripheryBeamSpring": 501000,
+        "hubPeripheryBeamDamp": 5
+      },
+      {
+        "hubSideBeamSpring": 801000,
+        "hubSideBeamDamp": 5
+      },
+      {
+        "hubNodeWeight": 0.4
+      },
+      {
+        "hubNodeMaterial": "|NM_METAL"
+      },
+      {
+        "hubFrictionCoef": 0.2
+      },
+      {
+        "hubBeamDeform": 45500,
+        "hubBeamStrength": 87500
+      }
+    ],
+    "torsionbars": [
+      [
+        "id1:",
+        "id2:",
+        "id3:",
+        "id4:"
+      ],
+      {
+        "spring": 50000,
+        "damp": 1,
+        "deform": 25000,
+        "strength": 100000
+      },
+      [
+        "fw1rr",
+        "fh4r",
+        "fh1r",
+        "fh3r"
+      ],
+      [
+        "fw1ll",
+        "fh4l",
+        "fh1l",
+        "fh3l"
+      ]
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamSpring": 8501000,
+        "beamDamp": 150,
+        "beamDeform": 99500,
+        "beamStrength": 270000
+      },
+      {
+        "breakGroup": "wheel_FR"
+      },
+      [
+        "fw1r",
+        "fh1r",
+        {
+          "name": "axle_FR"
+        }
+      ],
+      [
+        "fw1r",
+        "fh3r",
+        {
+          "beamSpring": 14001000,
+          "beamDamp": 50
+        }
+      ],
+      [
+        "fw1r",
+        "fh4r"
+      ],
+      [
+        "fw1r",
+        "fh5r",
+        {
+          "beamSpring": 6001000,
+          "beamDamp": 50
+        }
+      ],
+      [
+        "fw1rr",
+        "fh1r"
+      ],
+      [
+        "fw1rr",
+        "fh3r",
+        {
+          "beamSpring": 14001000,
+          "beamDamp": 50
+        }
+      ],
+      [
+        "fw1rr",
+        "fh4r"
+      ],
+      [
+        "fw1rr",
+        "fh5r",
+        {
+          "beamSpring": 6001000,
+          "beamDamp": 50
+        }
+      ],
+      {
+        "breakGroup": "wheel_FL"
+      },
+      [
+        "fw1l",
+        "fh1l",
+        {
+          "name": "axle_FL"
+        }
+      ],
+      [
+        "fw1l",
+        "fh3l",
+        {
+          "beamSpring": 14001000,
+          "beamDamp": 50
+        }
+      ],
+      [
+        "fw1l",
+        "fh4l"
+      ],
+      [
+        "fw1l",
+        "fh5l",
+        {
+          "beamSpring": 6001000,
+          "beamDamp": 50
+        }
+      ],
+      [
+        "fw1ll",
+        "fh1l"
+      ],
+      [
+        "fw1ll",
+        "fh3l",
+        {
+          "beamSpring": 14001000,
+          "beamDamp": 50
+        }
+      ],
+      [
+        "fw1ll",
+        "fh4l"
+      ],
+      [
+        "fw1ll",
+        "fh5l",
+        {
+          "beamSpring": 6001000,
+          "beamDamp": 50
+        }
+      ],
+      {
+        "breakGroup": ""
+      }
+    ]
+  },
+  "bx_driftmod_wheeldata_F": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Front Spindle Wheel Interface",
+      "value": 150
+    },
+    "slotType": "bx_driftmod_wheeldata_F",
+    "pressureWheels": [
+      [
+        "name",
+        "hubGroup",
+        "group",
+        "node1:",
+        "node2:",
+        "nodeS",
+        "nodeArm:",
+        "wheelDir"
+      ],
+      {
+        "selfCollision": false,
+        "collision": true,
+        "disableMeshBreaking": false,
+        "disableHubMeshBreaking": false,
+        "enableTireSideSupportBeams": true
+      },
+      {
+        "brakeTorque": "$=$braketorque_F",
+        "parkingTorque": 0,
+        "propulsed": 0
+      },
+      {
+        "hubcapBreakGroup": "hubcap_FR",
+        "hubcapGroup": "hubcap_FR",
+        "axleBeams": [
+          "axle_FR"
+        ]
+      },
+      [
+        "FR",
+        "wheel_FR",
+        "tire_FR",
+        "fw1rr",
+        "fw1r",
+        9999,
+        "fh5r",
+        1,
+        {
+          "torqueCoupling:": "fh1r",
+          "torqueArm:": "fh4r",
+          "torqueArm2:": "fw1rr",
+          "steerAxisUp:": "fh2r",
+          "steerAxisDown:": "fh1r"
+        }
+      ],
+      {
+        "hubcapBreakGroup": "hubcap_FL",
+        "hubcapGroup": "hubcap_FL",
+        "axleBeams": [
+          "axle_FL"
+        ]
+      },
+      [
+        "FL",
+        "wheel_FL",
+        "tire_FL",
+        "fw1ll",
+        "fw1l",
+        9999,
+        "fh5l",
+        -1,
+        {
+          "torqueCoupling:": "fh1l",
+          "torqueArm:": "fh4l",
+          "torqueArm2:": "fw1ll",
+          "steerAxisUp:": "fh2l",
+          "steerAxisDown:": "fh1l"
+        }
+      ],
+      {
+        "selfCollision": true,
+        "axleBeams": [],
+        "hubcapBreakGroup": "",
+        "hubcapGroup": ""
+      }
+    ],
+    "powertrain": [
+      [
+        "type",
+        "name",
+        "inputName",
+        "inputIndex"
+      ],
+      [
+        "shaft",
+        "wheelaxleFL",
+        "differential_F",
+        1,
+        {
+          "connectedWheel": "FL",
+          "breakTriggerBeam": "axle_FL",
+          "uiName": "Front Left Axle",
+          "friction": 0.94,
+          "dynamicFriction": 0.002
+        }
+      ],
+      [
+        "shaft",
+        "wheelaxleFR",
+        "differential_F",
+        2,
+        {
+          "connectedWheel": "FR",
+          "breakTriggerBeam": "axle_FR",
+          "uiName": "Front Right Axle",
+          "friction": 0.94,
+          "dynamicFriction": 0.002
+        }
+      ]
+    ]
+  },
+  "bx_driftmod_brake_F": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod 6-Piston Front Drift Calipers",
+      "value": 950
+    },
+    "slotType": "bx_driftmod_brake_F",
+    "flexbodies": [
+      [
+        "mesh",
+        "[group]:",
+        "nonFlexMaterials"
+      ],
+      [
+        "driftmod_rotor_FR",
+        [
+          "driftmod_knuckle_FR"
+        ]
+      ],
+      [
+        "driftmod_rotor_FL",
+        [
+          "driftmod_knuckle_FL"
+        ]
+      ],
+      [
+        "driftmod_brake_FR",
+        [
+          "driftmod_knuckle_FR"
+        ]
+      ],
+      [
+        "driftmod_brake_FL",
+        [
+          "driftmod_knuckle_FL"
+        ]
+      ]
+    ],
+    "variables": [
+      [
+        "name",
+        "type",
+        "unit",
+        "category",
+        "default",
+        "min",
+        "max",
+        "title",
+        "description"
+      ],
+      [
+        "$braketorque_F",
+        "range",
+        "Nm",
+        "DriftMod Brakes",
+        2650,
+        1200,
+        4200,
+        "Front Brake Torque",
+        "6-piston front caliper peak clamping torque"
+      ]
+    ]
+  }
+}

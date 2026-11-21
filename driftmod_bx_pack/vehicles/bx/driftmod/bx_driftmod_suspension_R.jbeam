@@ -1,0 +1,1726 @@
+{
+  "bx_driftmod_suspension_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Anti-Squat Multi-Link Rear Suspension (56% Anti-Squat)",
+      "value": 4800
+    },
+    "slotType": "bx_suspension_R",
+    "slots2": [
+      [
+        "name",
+        "allowTypes",
+        "denyTypes",
+        "default",
+        "description"
+      ],
+      [
+        "bx_driftmod_subframe_R",
+        [
+          "bx_driftmod_subframe_R"
+        ],
+        [],
+        "bx_driftmod_subframe_R",
+        "Rear Subframe",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_coilover_R",
+        [
+          "bx_driftmod_coilover_R"
+        ],
+        [],
+        "bx_driftmod_coilover_R",
+        "Rear Coilovers",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_swaybar_R",
+        [
+          "bx_driftmod_swaybar_R"
+        ],
+        [],
+        "bx_driftmod_swaybar_R",
+        "Rear Sway Bar"
+      ],
+      [
+        "bx_driftmod_hub_R",
+        [
+          "bx_driftmod_hub_R"
+        ],
+        [],
+        "bx_driftmod_hub_R",
+        "Rear 5-Lug Hubs",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_differential_R",
+        [
+          "bx_differential_R"
+        ],
+        [],
+        "bx_driftmod_diff_R",
+        "Rear Differential"
+      ]
+    ],
+    "variables": [
+      [
+        "name",
+        "type",
+        "unit",
+        "category",
+        "default",
+        "min",
+        "max",
+        "title",
+        "description"
+      ],
+      [
+        "$trackoffset_R",
+        "range",
+        "+m",
+        "DriftMod Alignment",
+        0,
+        -0.04,
+        0.06,
+        "Rear Track Offset",
+        "Adjusts rear hub offset"
+      ],
+      [
+        "$dm_rear_psi",
+        "range",
+        "PSI",
+        "DriftMod Tires",
+        20,
+        12,
+        42,
+        "Rear Tire Pressure",
+        "Target rear tire air pressure"
+      ],
+      [
+        "$dm_lsd_lock",
+        "range",
+        "%",
+        "DriftMod Drivetrain",
+        96,
+        0,
+        100,
+        "Rear LSD / Spool Lock",
+        "Clutch lockup / welded spool"
+      ],
+      [
+        "$dm_final_drive",
+        "range",
+        ":1",
+        "DriftMod Drivetrain",
+        4.11,
+        3.1,
+        4.9,
+        "Final Drive Ratio",
+        "Rear differential gear ratio"
+      ],
+      [
+        "$dm_boost_psi",
+        "range",
+        "PSI",
+        "DriftMod Drivetrain",
+        17,
+        0,
+        28,
+        "Target Turbo Boost",
+        "Turbo wastegate target PSI"
+      ]
+    ],
+    "flexbodies": [
+      [
+        "mesh",
+        "[group]:",
+        "nonFlexMaterials"
+      ],
+      [
+        "driftmod_arms_RR",
+        [
+          "driftmod_subframe_R",
+          "driftmod_knuckle_RR"
+        ]
+      ],
+      [
+        "driftmod_arms_RL",
+        [
+          "driftmod_subframe_R",
+          "driftmod_knuckle_RL"
+        ]
+      ],
+      [
+        "driftmod_knuckle_RR",
+        [
+          "driftmod_knuckle_RR"
+        ]
+      ],
+      [
+        "driftmod_knuckle_RL",
+        [
+          "driftmod_knuckle_RL"
+        ]
+      ]
+    ],
+    "nodes": [
+      [
+        "id",
+        "posX",
+        "posY",
+        "posZ"
+      ],
+      {
+        "selfCollision": false,
+        "collision": false,
+        "nodeMaterial": "|NM_METAL",
+        "frictionCoef": 0.5,
+        "nodeWeight": 7.5
+      },
+      {
+        "group": "driftmod_knuckle_RR"
+      },
+      [
+        "rh1r",
+        -0.635,
+        1.25,
+        0.245
+      ],
+      {
+        "group": "driftmod_knuckle_RL"
+      },
+      [
+        "rh1l",
+        0.635,
+        1.25,
+        0.245
+      ],
+      {
+        "nodeWeight": 10
+      },
+      {
+        "group": [
+          "driftmod_knuckle_RR",
+          "driftmod_coil_RR"
+        ]
+      },
+      [
+        "rsh1r",
+        -0.485,
+        1.255,
+        0.255
+      ],
+      {
+        "group": [
+          "driftmod_knuckle_RL",
+          "driftmod_coil_RL"
+        ]
+      },
+      [
+        "rsh1l",
+        0.485,
+        1.255,
+        0.255
+      ],
+      {
+        "nodeWeight": 7.5
+      },
+      {
+        "group": "driftmod_knuckle_RR"
+      },
+      [
+        "rh2r",
+        -0.625,
+        1.25,
+        0.475
+      ],
+      [
+        "rh4r",
+        -0.635,
+        1.165,
+        0.345
+      ],
+      [
+        "rh5r",
+        -0.635,
+        1.355,
+        0.345
+      ],
+      {
+        "group": "driftmod_knuckle_RL"
+      },
+      [
+        "rh2l",
+        0.625,
+        1.25,
+        0.475
+      ],
+      [
+        "rh4l",
+        0.635,
+        1.165,
+        0.345
+      ],
+      [
+        "rh5l",
+        0.635,
+        1.355,
+        0.345
+      ],
+      {
+        "nodeWeight": 10.5
+      },
+      {
+        "group": [
+          "driftmod_subframe_R",
+          "driftmod_coil_RR"
+        ]
+      },
+      [
+        "rc1r",
+        -0.45,
+        1.255,
+        0.745
+      ],
+      {
+        "group": [
+          "driftmod_subframe_R",
+          "driftmod_coil_RL"
+        ]
+      },
+      [
+        "rc1l",
+        0.45,
+        1.255,
+        0.745
+      ],
+      {
+        "group": ""
+      }
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|NORMAL",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamSpring": 1551000,
+        "beamDamp": 55,
+        "beamDeform": 145000,
+        "beamStrength": "FLT_MAX"
+      },
+      [
+        "rh1r",
+        "rh2r"
+      ],
+      [
+        "rh1l",
+        "rh2l"
+      ],
+      [
+        "rh1r",
+        "rh4r"
+      ],
+      [
+        "rh1l",
+        "rh4l"
+      ],
+      [
+        "rh2r",
+        "rh4r"
+      ],
+      [
+        "rh2l",
+        "rh4l"
+      ],
+      [
+        "rh1r",
+        "rh5r"
+      ],
+      [
+        "rh1l",
+        "rh5l"
+      ],
+      [
+        "rh2r",
+        "rh5r"
+      ],
+      [
+        "rh2l",
+        "rh5l"
+      ],
+      [
+        "rh4r",
+        "rh5r"
+      ],
+      [
+        "rh4l",
+        "rh5l"
+      ],
+      {
+        "beamSpring": 1501000,
+        "beamDamp": 55,
+        "beamDeform": 135000,
+        "beamStrength": 420000,
+        "dampCutoffHz": 500
+      },
+      [
+        "rx1r",
+        "rh1r"
+      ],
+      [
+        "rx2r",
+        "rh1r"
+      ],
+      [
+        "rx1r",
+        "rh4r"
+      ],
+      [
+        "rx1l",
+        "rh1l"
+      ],
+      [
+        "rx2l",
+        "rh1l"
+      ],
+      [
+        "rx1l",
+        "rh4l"
+      ],
+      [
+        "rsh1r",
+        "rx1r"
+      ],
+      [
+        "rsh1r",
+        "rx2r"
+      ],
+      [
+        "rsh1r",
+        "rh1r"
+      ],
+      [
+        "rsh1l",
+        "rx1l"
+      ],
+      [
+        "rsh1l",
+        "rx2l"
+      ],
+      [
+        "rsh1l",
+        "rh1l"
+      ],
+      [
+        "ru1r",
+        "rh2r"
+      ],
+      [
+        "ru2r",
+        "rh2r"
+      ],
+      [
+        "rx2r",
+        "rh5r"
+      ],
+      [
+        "ru1l",
+        "rh2l"
+      ],
+      [
+        "ru2l",
+        "rh2l"
+      ],
+      [
+        "rx2l",
+        "rh5l"
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|BOUNDED",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamSpring": 0,
+        "beamDamp": 0,
+        "beamDeform": 45000,
+        "beamStrength": 400000,
+        "beamLimitSpring": 251000,
+        "beamLimitDamp": 250,
+        "dampCutoffHz": 500
+      },
+      [
+        "rh1r",
+        "ru1r",
+        {
+          "longBoundRange": 0.14,
+          "shortBoundRange": 0.14,
+          "boundZone": 0.03
+        }
+      ],
+      [
+        "rh1l",
+        "ru1l",
+        {
+          "longBoundRange": 0.14,
+          "shortBoundRange": 0.14,
+          "boundZone": 0.03
+        }
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|NORMAL",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamSpring": 1251000,
+        "beamDamp": 50,
+        "beamDeform": 140000,
+        "beamStrength": "FLT_MAX"
+      },
+      [
+        "rc1r",
+        "ru1r"
+      ],
+      [
+        "rc1r",
+        "ru2r"
+      ],
+      [
+        "rc1r",
+        "rc1l"
+      ],
+      [
+        "rc1l",
+        "ru1l"
+      ],
+      [
+        "rc1l",
+        "ru2l"
+      ],
+      {
+        "optional": true,
+        "beamSpring": 651000,
+        "beamDamp": 35
+      },
+      [
+        "rc1r",
+        "r1rr"
+      ],
+      [
+        "rc1r",
+        "r1"
+      ],
+      [
+        "rc1r",
+        "r5rr"
+      ],
+      [
+        "rc1l",
+        "r1ll"
+      ],
+      [
+        "rc1l",
+        "r1"
+      ],
+      [
+        "rc1l",
+        "r5ll"
+      ],
+      {
+        "optional": false
+      }
+    ]
+  },
+  "bx_driftmod_subframe_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Solid-Bushing Rear Subframe (56% Anti-Squat)",
+      "value": 1950
+    },
+    "slotType": "bx_driftmod_subframe_R",
+    "flexbodies": [
+      [
+        "mesh",
+        "[group]:",
+        "nonFlexMaterials"
+      ],
+      [
+        "driftmod_subframe_R",
+        [
+          "driftmod_subframe_R"
+        ]
+      ]
+    ],
+    "nodes": [
+      [
+        "id",
+        "posX",
+        "posY",
+        "posZ"
+      ],
+      {
+        "group": "driftmod_subframe_R",
+        "selfCollision": false,
+        "collision": false,
+        "nodeMaterial": "|NM_METAL",
+        "frictionCoef": 0.5,
+        "nodeWeight": 10.5
+      },
+      [
+        "rx1r",
+        -0.33,
+        1.01,
+        0.3172
+      ],
+      [
+        "rx1l",
+        0.33,
+        1.01,
+        0.3172
+      ],
+      [
+        "rx2r",
+        -0.33,
+        1.43,
+        0.26
+      ],
+      [
+        "rx2l",
+        0.33,
+        1.43,
+        0.26
+      ],
+      {
+        "nodeWeight": 8.5
+      },
+      [
+        "ru1r",
+        -0.35,
+        1.075,
+        0.47
+      ],
+      [
+        "ru1l",
+        0.35,
+        1.075,
+        0.47
+      ],
+      [
+        "ru2r",
+        -0.35,
+        1.425,
+        0.47
+      ],
+      [
+        "ru2l",
+        0.35,
+        1.425,
+        0.47
+      ],
+      {
+        "group": "",
+        "nodeWeight": 4.5
+      },
+      [
+        "rx3r",
+        -0.4546,
+        1.0876,
+        0.4563
+      ],
+      [
+        "rx3l",
+        0.4546,
+        1.0876,
+        0.4563
+      ],
+      [
+        "rx4r",
+        -0.3368,
+        1.3403,
+        0.4603
+      ],
+      [
+        "rx4l",
+        0.3368,
+        1.3403,
+        0.4603
+      ],
+      [
+        "rx5r",
+        -0.2068,
+        1.3925,
+        0.3334
+      ],
+      [
+        "rx5l",
+        0.2068,
+        1.3925,
+        0.3334
+      ],
+      [
+        "rx8",
+        0,
+        1.1,
+        0.54
+      ],
+      {
+        "group": ""
+      }
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamSpring": 1501200,
+        "beamDamp": 55,
+        "beamDeform": 165000,
+        "beamStrength": 900000
+      },
+      [
+        "rx1r",
+        "rx1l"
+      ],
+      [
+        "rx2r",
+        "rx2l"
+      ],
+      [
+        "rx1r",
+        "rx2r"
+      ],
+      [
+        "rx1l",
+        "rx2l"
+      ],
+      [
+        "rx1r",
+        "rx2l"
+      ],
+      [
+        "rx1l",
+        "rx2r"
+      ],
+      [
+        "ru1r",
+        "ru2r"
+      ],
+      [
+        "ru1l",
+        "ru2l"
+      ],
+      [
+        "ru1r",
+        "ru1l"
+      ],
+      [
+        "ru2r",
+        "ru2l"
+      ],
+      [
+        "ru1r",
+        "rx1r"
+      ],
+      [
+        "ru2r",
+        "rx2r"
+      ],
+      [
+        "ru1r",
+        "rx2r"
+      ],
+      [
+        "ru2r",
+        "rx1r"
+      ],
+      [
+        "ru1l",
+        "rx1l"
+      ],
+      [
+        "ru2l",
+        "rx2l"
+      ],
+      [
+        "ru1l",
+        "rx2l"
+      ],
+      [
+        "ru2l",
+        "rx1l"
+      ],
+      {
+        "beamSpring": 1201200,
+        "beamDamp": 45,
+        "beamDeform": 145000,
+        "beamStrength": 900000
+      },
+      [
+        "rx3r",
+        "rx3l"
+      ],
+      [
+        "rx5r",
+        "rx5l"
+      ],
+      [
+        "rx3r",
+        "rx1r"
+      ],
+      [
+        "rx3r",
+        "rx2r"
+      ],
+      [
+        "rx3r",
+        "ru1r"
+      ],
+      [
+        "rx3l",
+        "rx1l"
+      ],
+      [
+        "rx3l",
+        "rx2l"
+      ],
+      [
+        "rx3l",
+        "ru1l"
+      ],
+      [
+        "rx4r",
+        "rx2r"
+      ],
+      [
+        "rx4r",
+        "ru2r"
+      ],
+      [
+        "rx4l",
+        "rx2l"
+      ],
+      [
+        "rx4l",
+        "ru2l"
+      ],
+      [
+        "rx5r",
+        "rx2r"
+      ],
+      [
+        "rx5r",
+        "ru2r"
+      ],
+      [
+        "rx5l",
+        "rx2l"
+      ],
+      [
+        "rx5l",
+        "ru2l"
+      ],
+      [
+        "rx8",
+        "rx1r"
+      ],
+      [
+        "rx8",
+        "rx1l"
+      ],
+      [
+        "rx8",
+        "rx4r"
+      ],
+      [
+        "rx8",
+        "rx4l"
+      ],
+      {
+        "optional": true,
+        "beamSpring": 651000,
+        "beamDamp": 35
+      },
+      [
+        "rx1r",
+        "f4r"
+      ],
+      [
+        "rx1r",
+        "f4rr"
+      ],
+      [
+        "rx1r",
+        "f9r"
+      ],
+      [
+        "rx1l",
+        "f4l"
+      ],
+      [
+        "rx1l",
+        "f4ll"
+      ],
+      [
+        "rx1l",
+        "f9l"
+      ],
+      [
+        "rx2r",
+        "r2"
+      ],
+      [
+        "rx2r",
+        "r2rr"
+      ],
+      [
+        "rx2r",
+        "r5rr"
+      ],
+      [
+        "rx2l",
+        "r2"
+      ],
+      [
+        "rx2l",
+        "r2ll"
+      ],
+      [
+        "rx2l",
+        "r5ll"
+      ],
+      [
+        "ru1r",
+        "f9r"
+      ],
+      [
+        "ru1r",
+        "r1rr"
+      ],
+      [
+        "ru2r",
+        "r5rr"
+      ],
+      [
+        "ru2r",
+        "r1rr"
+      ],
+      [
+        "ru1l",
+        "f9l"
+      ],
+      [
+        "ru1l",
+        "r1ll"
+      ],
+      [
+        "ru2l",
+        "r5ll"
+      ],
+      [
+        "ru2l",
+        "r1ll"
+      ],
+      {
+        "optional": false
+      }
+    ]
+  },
+  "bx_driftmod_coilover_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod 2-Way Rear Drift Coilovers (48 kN/m)",
+      "value": 1350
+    },
+    "slotType": "bx_driftmod_coilover_R",
+    "flexbodies": [
+      [
+        "mesh",
+        "[group]:",
+        "nonFlexMaterials"
+      ],
+      [
+        "driftmod_coilover_RR",
+        [
+          "driftmod_coil_RR",
+          "driftmod_subframe_R"
+        ]
+      ],
+      [
+        "driftmod_coilover_RL",
+        [
+          "driftmod_coil_RL",
+          "driftmod_subframe_R"
+        ]
+      ]
+    ],
+    "variables": [
+      [
+        "name",
+        "type",
+        "unit",
+        "category",
+        "default",
+        "min",
+        "max",
+        "title",
+        "description"
+      ],
+      [
+        "$dm_spring_R",
+        "range",
+        "N/m",
+        "DriftMod Coilovers",
+        48000,
+        25000,
+        90000,
+        "Rear Spring Rate",
+        "Rear coilover wheel rate"
+      ],
+      [
+        "$damp_bump_R",
+        "range",
+        "N/m/s",
+        "DriftMod Coilovers",
+        720,
+        550,
+        1600,
+        "Rear Bump Damping",
+        "Rear compression wheel damping"
+      ],
+      [
+        "$damp_rebound_R",
+        "range",
+        "N/m/s",
+        "DriftMod Coilovers",
+        1152,
+        900,
+        2500,
+        "Rear Rebound Damping",
+        "Rear extension rebound wheel damping"
+      ],
+      [
+        "$rideheight_R",
+        "range",
+        "",
+        "DriftMod Coilovers",
+        1.04,
+        0.9,
+        1.12,
+        "Rear Ride Height",
+        "Rear coilover perch precompression"
+      ]
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamPrecompression": "$rideheight_R",
+        "beamType": "|BOUNDED",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      },
+      {
+        "beamDeform": 12000,
+        "beamStrength": 160000
+      },
+      {
+        "beamSpring": "$=$dm_spring_R*3.87",
+        "beamDamp": 0
+      },
+      {
+        "beamLimitSpring": 34000,
+        "beamLimitDamp": 1000
+      },
+      [
+        "rsh1r",
+        "rc1r",
+        {
+          "longBoundRange": 0.075,
+          "shortBoundRange": 0.065,
+          "boundZone": 0.03,
+          "dampCutoffHz": 500
+        }
+      ],
+      [
+        "rsh1l",
+        "rc1l",
+        {
+          "longBoundRange": 0.075,
+          "shortBoundRange": 0.065,
+          "boundZone": 0.03,
+          "dampCutoffHz": 500
+        }
+      ],
+      {
+        "beamSpring": 0,
+        "beamDamp": "$=$damp_bump_R*3.87"
+      },
+      {
+        "beamLimitSpring": 0,
+        "beamLimitDamp": 0
+      },
+      [
+        "rsh1r",
+        "rc1r",
+        {
+          "beamDampFast": "$=$damp_bump_R*2.7",
+          "beamDampRebound": "$=$damp_rebound_R*3.87",
+          "beamDampReboundFast": "$=$damp_rebound_R*2.55",
+          "beamDampVelocitySplit": 0.06,
+          "dampCutoffHz": 500
+        }
+      ],
+      [
+        "rsh1l",
+        "rc1l",
+        {
+          "beamDampFast": "$=$damp_bump_R*2.7",
+          "beamDampRebound": "$=$damp_rebound_R*3.87",
+          "beamDampReboundFast": "$=$damp_rebound_R*2.55",
+          "beamDampVelocitySplit": 0.06,
+          "dampCutoffHz": 500
+        }
+      ],
+      {
+        "beamSpring": 0,
+        "beamDamp": 0
+      },
+      {
+        "beamLimitSpring": 251000,
+        "beamLimitDamp": 500
+      },
+      [
+        "rsh1r",
+        "rc1r",
+        {
+          "longBoundRange": 0.06,
+          "shortBoundRange": 0.05,
+          "boundZone": 0.025,
+          "dampCutoffHz": 500
+        }
+      ],
+      [
+        "rsh1l",
+        "rc1l",
+        {
+          "longBoundRange": 0.06,
+          "shortBoundRange": 0.05,
+          "boundZone": 0.025,
+          "dampCutoffHz": 500
+        }
+      ],
+      {
+        "beamPrecompression": 1,
+        "beamType": "|NORMAL",
+        "beamLongBound": 1,
+        "beamShortBound": 1
+      }
+    ]
+  },
+  "bx_driftmod_swaybar_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Adjustable Rear ARB (34% Rear Bias)",
+      "value": 460
+    },
+    "slotType": "bx_driftmod_swaybar_R",
+    "nodes": [
+      [
+        "id",
+        "posX",
+        "posY",
+        "posZ"
+      ],
+      {
+        "group": "driftmod_arb_R",
+        "selfCollision": false,
+        "collision": false,
+        "nodeWeight": 2.5
+      },
+      [
+        "arbr1r",
+        -0.46,
+        1.25,
+        0.28
+      ],
+      [
+        "arbr1l",
+        0.46,
+        1.25,
+        0.28
+      ],
+      {
+        "group": ""
+      }
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamSpring": 451000,
+        "beamDamp": 35,
+        "beamDeform": 90000,
+        "beamStrength": "FLT_MAX"
+      },
+      [
+        "arbr1r",
+        "rx1r"
+      ],
+      [
+        "arbr1r",
+        "rx2r"
+      ],
+      [
+        "arbr1l",
+        "rx1l"
+      ],
+      [
+        "arbr1l",
+        "rx2l"
+      ],
+      {
+        "beamSpring": 14240,
+        "beamDamp": 35
+      },
+      [
+        "arbr1r",
+        "rh1r"
+      ],
+      [
+        "arbr1l",
+        "rh1l"
+      ],
+      [
+        "arbr1r",
+        "arbr1l"
+      ]
+    ]
+  },
+  "bx_driftmod_hub_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod 5-Lug Rear Hubs",
+      "value": 750
+    },
+    "slotType": "bx_driftmod_hub_R",
+    "slots2": [
+      [
+        "name",
+        "allowTypes",
+        "denyTypes",
+        "default",
+        "description"
+      ],
+      [
+        "bx_driftmod_wheeldata_R",
+        [
+          "bx_driftmod_wheeldata_R"
+        ],
+        [],
+        "bx_driftmod_wheeldata_R",
+        "Rear Wheel Data",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "bx_driftmod_brake_R",
+        [
+          "bx_driftmod_brake_R"
+        ],
+        [],
+        "bx_driftmod_brake_R",
+        "Rear Drift Brakes & Hydro",
+        {
+          "coreSlot": true
+        }
+      ],
+      [
+        "wheel_R_5",
+        [
+          "wheel_R_5"
+        ],
+        [],
+        "steelwheel_01a_15x7_R",
+        "Rear Wheels (5-Lug)",
+        {
+          "nodeOffset": {
+            "x": "$=$trackoffset_R+0.240",
+            "y": 1.25,
+            "z": 0.325
+          }
+        }
+      ]
+    ],
+    "nodes": [
+      [
+        "id",
+        "posX",
+        "posY",
+        "posZ"
+      ],
+      {
+        "selfCollision": false,
+        "collision": false,
+        "nodeMaterial": "|NM_METAL",
+        "frictionCoef": 0.5,
+        "nodeWeight": 7.5
+      },
+      {
+        "group": "wheelhub_RR"
+      },
+      [
+        "rw1r",
+        -0.56,
+        1.2495,
+        0.3243
+      ],
+      [
+        "rw1rr",
+        -0.77,
+        1.2505,
+        0.3257
+      ],
+      {
+        "group": "wheelhub_RL"
+      },
+      [
+        "rw1l",
+        0.56,
+        1.2495,
+        0.3243
+      ],
+      [
+        "rw1ll",
+        0.77,
+        1.2505,
+        0.3257
+      ],
+      {
+        "group": ""
+      }
+    ],
+    "pressureWheels": [
+      [
+        "name",
+        "hubGroup",
+        "group",
+        "node1:",
+        "node2:",
+        "nodeS",
+        "nodeArm:",
+        "wheelDir"
+      ],
+      {
+        "disableMeshBreaking": false,
+        "disableHubMeshBreaking": false,
+        "enableHubcaps": false,
+        "hasTire": false
+      },
+      {
+        "hubRadius": 0.08
+      },
+      {
+        "wheelOffset": -0.05
+      },
+      {
+        "hubWidth": 0.05
+      },
+      {
+        "numRays": 8
+      },
+      {
+        "hubTreadBeamSpring": 501000,
+        "hubTreadBeamDamp": 5
+      },
+      {
+        "hubPeripheryBeamSpring": 501000,
+        "hubPeripheryBeamDamp": 5
+      },
+      {
+        "hubSideBeamSpring": 801000,
+        "hubSideBeamDamp": 5
+      },
+      {
+        "hubNodeWeight": 0.4
+      },
+      {
+        "hubNodeMaterial": "|NM_METAL"
+      },
+      {
+        "hubFrictionCoef": 0.2
+      },
+      {
+        "hubBeamDeform": 45500,
+        "hubBeamStrength": 87500
+      }
+    ],
+    "beams": [
+      [
+        "id1:",
+        "id2:"
+      ],
+      {
+        "beamSpring": 8501000,
+        "beamDamp": 100,
+        "beamDeform": 75000,
+        "beamStrength": 275000
+      },
+      {
+        "breakGroup": "wheel_RR"
+      },
+      [
+        "rw1r",
+        "rh1r",
+        {
+          "name": "axle_RR",
+          "beamSpring": 6501000
+        }
+      ],
+      [
+        "rw1r",
+        "rh2r",
+        {
+          "beamSpring": 4501000
+        }
+      ],
+      [
+        "rw1r",
+        "rh4r"
+      ],
+      [
+        "rw1r",
+        "rh5r"
+      ],
+      [
+        "rw1rr",
+        "rh1r"
+      ],
+      [
+        "rw1rr",
+        "rh2r",
+        {
+          "beamSpring": 4501000
+        }
+      ],
+      [
+        "rw1rr",
+        "rh4r"
+      ],
+      [
+        "rw1rr",
+        "rh5r"
+      ],
+      {
+        "breakGroup": "wheel_RL"
+      },
+      [
+        "rw1l",
+        "rh1l",
+        {
+          "name": "axle_RL",
+          "beamSpring": 6501000
+        }
+      ],
+      [
+        "rw1l",
+        "rh2l",
+        {
+          "beamSpring": 4501000
+        }
+      ],
+      [
+        "rw1l",
+        "rh4l"
+      ],
+      [
+        "rw1l",
+        "rh5l"
+      ],
+      [
+        "rw1ll",
+        "rh1l"
+      ],
+      [
+        "rw1ll",
+        "rh2l",
+        {
+          "beamSpring": 4501000
+        }
+      ],
+      [
+        "rw1ll",
+        "rh4l"
+      ],
+      [
+        "rw1ll",
+        "rh5l"
+      ],
+      {
+        "breakGroup": ""
+      }
+    ]
+  },
+  "bx_driftmod_wheeldata_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Rear Axle Wheel Interface",
+      "value": 150
+    },
+    "slotType": "bx_driftmod_wheeldata_R",
+    "pressureWheels": [
+      [
+        "name",
+        "hubGroup",
+        "group",
+        "node1:",
+        "node2:",
+        "nodeS",
+        "nodeArm:",
+        "wheelDir"
+      ],
+      {
+        "selfCollision": false,
+        "collision": true,
+        "disableMeshBreaking": false,
+        "disableHubMeshBreaking": false,
+        "enableTireSideSupportBeams": true
+      },
+      {
+        "brakeTorque": "$=$braketorque_R",
+        "parkingTorque": 2800
+      },
+      {
+        "hubcapBreakGroup": "hubcap_RR",
+        "hubcapGroup": "hubcap_RR",
+        "axleBeams": [
+          "axle_RR"
+        ]
+      },
+      [
+        "RR",
+        "wheel_RR",
+        "tire_RR",
+        "rw1rr",
+        "rw1r",
+        9999,
+        "rh5r",
+        1,
+        {
+          "torqueCoupling:": "rdiff",
+          "torqueArm:": "rx2r",
+          "torqueArm2:": "ru2r"
+        }
+      ],
+      {
+        "hubcapBreakGroup": "hubcap_RL",
+        "hubcapGroup": "hubcap_RL",
+        "axleBeams": [
+          "axle_RL"
+        ]
+      },
+      [
+        "RL",
+        "wheel_RL",
+        "tire_RL",
+        "rw1ll",
+        "rw1l",
+        9999,
+        "rh5l",
+        -1,
+        {
+          "torqueCoupling:": "rdiff",
+          "torqueArm:": "rx2l",
+          "torqueArm2:": "ru2l"
+        }
+      ],
+      {
+        "selfCollision": true,
+        "axleBeams": [],
+        "hubcapBreakGroup": "",
+        "hubcapGroup": ""
+      }
+    ],
+    "powertrain": [
+      [
+        "type",
+        "name",
+        "inputName",
+        "inputIndex"
+      ],
+      [
+        "shaft",
+        "spindleRL",
+        "wheelaxleRL",
+        1,
+        {
+          "connectedWheel": "RL",
+          "breakTriggerBeam": "axle_RL",
+          "uiName": "Rear Left Axle",
+          "friction": 0.94,
+          "dynamicFriction": 0.002
+        }
+      ],
+      [
+        "shaft",
+        "spindleRR",
+        "wheelaxleRR",
+        1,
+        {
+          "connectedWheel": "RR",
+          "breakTriggerBeam": "axle_RR",
+          "uiName": "Rear Right Axle",
+          "friction": 0.94,
+          "dynamicFriction": 0.002
+        }
+      ]
+    ]
+  },
+  "bx_driftmod_brake_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod Dual-Caliper Hydro Rear Brakes",
+      "value": 820
+    },
+    "slotType": "bx_driftmod_brake_R",
+    "flexbodies": [
+      [
+        "mesh",
+        "[group]:",
+        "nonFlexMaterials"
+      ],
+      [
+        "driftmod_rotor_RR",
+        [
+          "driftmod_knuckle_RR"
+        ]
+      ],
+      [
+        "driftmod_rotor_RL",
+        [
+          "driftmod_knuckle_RL"
+        ]
+      ],
+      [
+        "driftmod_brake_RR",
+        [
+          "driftmod_knuckle_RR"
+        ]
+      ],
+      [
+        "driftmod_brake_RL",
+        [
+          "driftmod_knuckle_RL"
+        ]
+      ]
+    ],
+    "variables": [
+      [
+        "name",
+        "type",
+        "unit",
+        "category",
+        "default",
+        "min",
+        "max",
+        "title",
+        "description"
+      ],
+      [
+        "$braketorque_R",
+        "range",
+        "Nm",
+        "DriftMod Brakes",
+        1450,
+        600,
+        2600,
+        "Rear Brake Torque",
+        "Rear caliper torque + hydro handbrake"
+      ]
+    ]
+  },
+  "bx_driftmod_diff_R": {
+    "information": {
+      "authors": "DriftMod Workbench",
+      "name": "DriftMod 2-Way Clutch LSD (4.11:1)",
+      "value": 1250
+    },
+    "slotType": "bx_differential_R",
+    "powertrain": [
+      [
+        "type",
+        "name",
+        "inputName",
+        "inputIndex"
+      ],
+      [
+        "shaft",
+        "driveshaft",
+        "gearbox",
+        1,
+        {
+          "friction": 0.5,
+          "uiName": "Driveshaft"
+        }
+      ],
+      [
+        "differential",
+        "differential_R",
+        "driveshaft",
+        1,
+        {
+          "diffType": "lsd",
+          "gearRatio": "$dm_final_drive",
+          "lsdPreload": 194,
+          "lsdLockCoef": 0.96,
+          "lsdRevLockCoef": 0.864,
+          "defaultVirtualInertia": 0.25,
+          "friction": 8,
+          "uiName": "Rear Differential"
+        }
+      ],
+      [
+        "shaft",
+        "wheelaxleRL",
+        "differential_R",
+        1,
+        {
+          "friction": 2,
+          "uiName": "Rear Left Halfshaft"
+        }
+      ],
+      [
+        "shaft",
+        "wheelaxleRR",
+        "differential_R",
+        2,
+        {
+          "friction": 2,
+          "uiName": "Rear Right Halfshaft"
+        }
+      ]
+    ]
+  }
+}
