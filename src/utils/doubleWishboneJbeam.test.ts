@@ -766,6 +766,15 @@ test('hub clusters use stock wheelhub_* groups, hub physics and stock-strength k
       (r) => Array.isArray(r) && typeof r[0] === 'string' && typeof r[1] === 'string'
     );
     assert.ok(hubBeams.length >= 8, `${partName} must attach both hub faces to the knuckle`);
+    if (partName === 'bx_driftmod_hub_F') {
+      for (const hubNode of ['fw1r', 'fw1rr', 'fw1l', 'fw1ll']) {
+        const upperBall = hubNode.endsWith('l') || hubNode.endsWith('ll') ? 'fh2l' : 'fh2r';
+        assert.ok(
+          hubBeams.some((row) => row[0] === hubNode && row[1] === upperBall),
+          `${hubNode} must be constrained to upper ball joint ${upperBall}`
+        );
+      }
+    }
     let strongest = 0;
     for (const row of hubBeams) {
       const opts = (row[2] as { beamSpring?: number } | undefined) ?? {};

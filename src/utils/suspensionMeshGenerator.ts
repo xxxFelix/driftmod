@@ -216,13 +216,8 @@ export function buildSuspensionMeshScene(
   const yTieOuter = yF + 0.116;
   const zTieOuter = 0.315;
 
-<<<<<<< HEAD
-  const xHubInF = 0.665;
-  const xHubOutF = 0.875;
-=======
   const xHubInF = 0.705;
   const xHubOutF = 0.915;
->>>>>>> cf69707f6a96ca0ec68fe8924bcf0ad602a6133f
   const spindleLenF = xHubOutF - xHubInF;
   const zHubCenterF = 0.35;
   const dzCamberF = spindleLenF * 0.5 * Math.sin(-camberFRad);
