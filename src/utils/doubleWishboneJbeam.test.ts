@@ -725,6 +725,74 @@ test('real BeamNG v0.40 BX stock body & suspension JBeams pass full compatibilit
 });
 
 
+test('live tuning exposes alignment, damping, ARB, pressure and rear geometry variables', () => {
+  const bx = CHASSIS_PRESETS[0];
+  const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);
+  const parsed: Record<string, Record<string, unknown>> = {};
+  for (const f of files) Object.assign(parsed, JSON.parse(f.content));
+
+  const frontSusp = parsed[`${bx.beamngInternalId}_driftmod_dw_suspension_F`];
+  const frontBeams = (frontSusp.beams as unknown[][]) ?? [];
+  for (const [a, b] of [
+    ['fx1r', 'fx2r'],
+    ['fx1r', 'flr1r'],
+    ['fx2r', 'flr1r'],
+    ['fx1l', 'fx2l'],
+    ['fx1l', 'flr1l'],
+    ['fx2l', 'flr1l'],
+  ]) {
+    assert.ok(
+      frontBeams.some((row) => row[0] === a && row[1] === b),
+      `front lower arm must include triangular brace ${a}-${b}`
+    );
+  }
+  const frontVars = (frontSusp.variables as unknown[][]) ?? [];
+  const camberVar = frontVars.find((row) => row[0] === '$dm_camber_F');
+  assert.ok(camberVar, 'front camber variable must exist');
+  assert.equal(camberVar[5], -16.0, 'front camber range must reach -16 degrees');
+  assert.ok(
+    frontBeams.some((row) => row[0] === 'fw1r' && row[1] === 'fh4r'),
+    'front hub must have a direct camber trim beam'
+  );
+
+  const requiredVariables: Record<string, string[]> = {
+    [`${bx.beamngInternalId}_driftmod_dw_suspension_F`]: [
+      '$dm_camber_F',
+      '$dm_toe_F',
+      '$dm_ackermann',
+      '$dm_front_psi',
+    ],
+    [`${bx.beamngInternalId}_driftmod_coilover_F`]: [
+      '$damp_bump_F',
+      '$damp_rebound_F',
+    ],
+    [`${bx.beamngInternalId}_driftmod_swaybar_F`]: ['$dm_arb_spring_F'],
+    [`${bx.beamngInternalId}_driftmod_suspension_R`]: [
+      '$dm_camber_R',
+      '$dm_toe_R',
+      '$dm_anti_squat',
+      '$dm_rear_psi',
+    ],
+    [`${bx.beamngInternalId}_driftmod_coilover_R`]: [
+      '$damp_bump_R',
+      '$damp_rebound_R',
+    ],
+    [`${bx.beamngInternalId}_driftmod_swaybar_R`]: ['$dm_arb_spring_R'],
+  };
+
+  for (const [partName, names] of Object.entries(requiredVariables)) {
+    const part = parsed[partName];
+    assert.ok(part, `${partName} must exist`);
+    const variables = (part.variables as unknown[][]) ?? [];
+    for (const name of names) {
+      assert.ok(
+        variables.some((row) => row[0] === name),
+        `${partName} must expose live variable ${name}`
+      );
+    }
+  }
+});
+
 test('hub clusters use stock wheelhub_* groups, hub physics and stock-strength knuckle attachment', () => {
   const bx = CHASSIS_PRESETS[0];
   const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);

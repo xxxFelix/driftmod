@@ -354,6 +354,12 @@ export function buildSuspensionMeshScene(
     lcaMb.addTube(lcaRearElbow, fh1, 0.016, 8);
     lcaMb.addTube(lcaElbow1, fsh1, 0.013, 6);
     lcaMb.addTube(lcaRearElbow, fsh1, 0.013, 6);
+    // Lateral and fore/aft triangulation: makes the lower A-arm read and flex as a rigid
+    // triangular frame instead of two separate wishbone tubes.
+    lcaMb.addTube(fx1, lcaElbow2, 0.012, 6);
+    lcaMb.addTube(lcaElbow2, lcaRearElbow, 0.012, 6);
+    lcaMb.addTube(lcaElbow2, fh1, 0.012, 6);
+    lcaMb.addTube(lcaElbow1, lcaRearElbow, 0.011, 6);
     pushPart(`driftmod_lca_${tag}`, `Front Lower Wishbone (${tag})`, 'front', 'arms', 'dm_chromoly_orange', lcaMb);
 
     // Open-Window High-Angle Upper Wishbone A-Arm (~77-82% of LCA length; clears coilover & +/-70 deg tire barrel)

@@ -163,14 +163,14 @@ local function applyDriftModTune()
 
   local springF = tonumber(cfg.springF) or ${frontSpringNm}
   local springR = tonumber(cfg.springR) or ${rearSpringNm}
-  local dampBumpF = math.min(1800, math.floor(springF * 0.016))
-  local dampReboundF = math.min(2800, math.floor(springF * 0.026))
-  local dampBumpR = math.min(1600, math.floor(springR * 0.015))
-  local dampReboundR = math.min(2500, math.floor(springR * 0.024))
+  local dampBumpF = clamp(tonumber(cfg.dampBumpF) or ${tune.frontBumpDamping}, 600, 1600)
+  local dampReboundF = clamp(tonumber(cfg.dampReboundF) or ${tune.frontReboundDamping}, 1000, 2200)
+  local dampBumpR = clamp(tonumber(cfg.dampBumpR) or ${tune.rearBumpDamping}, 550, 1600)
+  local dampReboundR = clamp(tonumber(cfg.dampReboundR) or ${tune.rearReboundDamping}, 900, 2200)
 
   local arbBiasR = clamp(tonumber(cfg.arbBiasR) or ${tune.rearArbBiasPct}, 20, 80)
-  local frontArbScale = clamp(1.0 + (50 - arbBiasR) * 0.014, 0.45, 1.75)
-  local rearArbScale = clamp(1.0 + (arbBiasR - 50) * 0.014, 0.25, 1.75)
+  local frontArbSpring = clamp(tonumber(cfg.frontArbStiffness) or ${tune.frontArbStiffness}, 10000, 180000)
+  local rearArbSpring = clamp(tonumber(cfg.rearArbStiffness) or ${tune.rearArbStiffness}, 10000, 180000)
   local ffbDampPct = clamp(tonumber(cfg.ffbDampingPct) or ${tune.ffbDampingPct}, 0, 60)
   local rackDampScale = clamp(0.68 + (ffbDampPct / 60) * 0.82, 0.65, 1.50)
 
@@ -204,8 +204,7 @@ local function applyDriftModTune()
             end
           end
         elseif strContains(origin, "swaybar") and base.spring >= 2000 and base.spring <= 350000 then
-          local scale = base.isFront and frontArbScale or rearArbScale
-          local newSpring = math.floor(base.spring * scale)
+          local newSpring = base.isFront and frontArbSpring or rearArbSpring
           pcall(obj.setBeamSpringDamp, obj, cid, newSpring, base.damp, newSpring, base.dampRebound)
         elseif strContains(origin, "steering") and base.damp >= 20 and base.damp <= 6000 and base.spring <= 250000 then
           local newDamp = math.floor(base.damp * rackDampScale)
@@ -220,6 +219,7 @@ local function applyDriftModTune()
   local steerSpeed = clamp(tonumber(cfg.steerSpeed) or ${tune.steeringSpeed.toFixed(2)}, 0.6, 1.8)
   local wheelDeg = clamp(tonumber(cfg.steerWheelDeg) or ${tune.steeringWheelDeg}, 540, 1080)
   local casterDeg = clamp(tonumber(cfg.casterDeg) or ${tune.frontCasterDeg.toFixed(1)}, 3.0, 10.5)
+  local ackermannPct = clamp(tonumber(cfg.ackermannPct) or ${tune.ackermannPct}, -15, 100)
   local ffbGainPct = clamp(tonumber(cfg.ffbStrengthPct) or ${tune.ffbStrengthPct}, 60, 160)
   -- Scale relative to baked JBeam lock angle so default stays exactly 1.0
   local lockScale = clamp(lockDeg / math.max(40, baseLockDeg), 0.65, 1.30)
@@ -235,6 +235,11 @@ local function applyDriftModTune()
         if h then
           if baseH.factor and type(h.factor) == "number" then
             h.factor = baseH.factor * lockScale
+            if ackermannPct < 0 then
+              h.factor = h.factor * (1 + ackermannPct * 0.002)
+            elseif ackermannPct > 0 then
+              h.factor = h.factor * (1 - ackermannPct * 0.002)
+            end
           end
           if h.inLimit then
             local delta = (baseH.inLimit - 1) * lockScale
@@ -262,6 +267,7 @@ local function applyDriftModTune()
 
   local brakeBiasF = clamp(tonumber(cfg.brakeBiasPct) or ${tune.brakeBiasPct}, 50, 75) / 100
   local rearPsi = clamp(tonumber(cfg.rearTirePsi) or ${tune.rearTirePsi}, 12, 42)
+  local frontPsi = clamp(tonumber(cfg.frontTirePsi) or ${tune.frontTirePsi}, 12, 42)
   if wheels and wheels.wheels then
     local totalFront, totalRear, fCount, rCount = 0, 0, 0, 0
     for _, baseB in pairs(baseBrakes) do
@@ -287,8 +293,9 @@ local function applyDriftModTune()
 
     if obj and obj.setGroupPressure then
       for _, w in pairs(wheels.wheels) do
-        if isRearWheel(w) and w.pressureGroup then
-          pcall(obj.setGroupPressure, obj, w.pressureGroup, rearPsi * 6894.76)
+        if w.pressureGroup then
+          local pressure = isRearWheel(w) and rearPsi or frontPsi
+          pcall(obj.setGroupPressure, obj, w.pressureGroup, pressure * 6894.76)
         end
       end
     end
@@ -388,6 +395,19 @@ return M
         $dm_spring_F: frontSpringNm,
         $dm_spring_R: rearSpringNm,
         $dm_arb_bias_R: tune.rearArbBiasPct,
+        $dm_arb_spring_F: tune.frontArbStiffness,
+        $dm_arb_spring_R: tune.rearArbStiffness,
+        $damp_bump_F: tune.frontBumpDamping,
+        $damp_rebound_F: tune.frontReboundDamping,
+        $damp_bump_R: tune.rearBumpDamping,
+        $damp_rebound_R: tune.rearReboundDamping,
+        $dm_ackermann: tune.ackermannPct,
+        $dm_camber_F: tune.frontCamberDeg,
+        $dm_camber_R: tune.rearCamberDeg,
+        $dm_toe_F: tune.frontToeDeg,
+        $dm_toe_R: tune.rearToeDeg,
+        $dm_anti_squat: tune.antiSquatPct,
+        $dm_front_psi: tune.frontTirePsi,
         $dm_cage_rigidity: tune.chassisRigidity,
         $dm_rear_psi: tune.rearTirePsi,
         $dm_brake_bias: tune.brakeBiasPct,

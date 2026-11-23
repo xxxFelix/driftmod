@@ -26,7 +26,7 @@ export interface DriftTuneParams {
   ffbDampingPct: number;
   /** Front suspension caster angle in degrees (3.0 - 10.5) */
   frontCasterDeg: number;
-  /** Front wheel negative camber in degrees (-7.0 to 0.0) */
+  /** Front wheel negative camber in degrees (-16.0 to 0.0) */
   frontCamberDeg: number;
   /** Rear wheel negative camber in degrees (-6.0 to +0.5) */
   rearCamberDeg: number;
@@ -38,6 +38,18 @@ export interface DriftTuneParams {
   frontSpringKn: number;
   /** Rear coilover spring rate in kN/m (25 - 90) */
   rearSpringKn: number;
+  /** Front bump damping (600 - 1600 N/m/s) */
+  frontBumpDamping: number;
+  /** Front rebound damping (1000 - 2200 N/m/s) */
+  frontReboundDamping: number;
+  /** Rear bump damping (550 - 1600 N/m/s) */
+  rearBumpDamping: number;
+  /** Rear rebound damping (900 - 2200 N/m/s) */
+  rearReboundDamping: number;
+  /** Front anti-roll bar spring stiffness in N/m (10000 - 180000) */
+  frontArbStiffness: number;
+  /** Rear anti-roll bar spring stiffness in N/m (10000 - 180000) */
+  rearArbStiffness: number;
   /** Rear anti-roll bar stiffness bias percentage (20 - 80; lower = softer/disconnected rear bar) */
   rearArbBiasPct: number;
   /** Rear anti-squat geometry percentage (20 - 90) */
@@ -50,6 +62,8 @@ export interface DriftTuneParams {
   rearTireWidthMm: number;
   /** Rear tire pressure in PSI (12 - 42; 16-20 PSI = max FD grip, 32+ PSI = loose street slide) */
   rearTirePsi: number;
+  /** Front tire pressure in PSI (12 - 42) */
+  frontTirePsi: number;
   /** Brake balance % front (50 - 75; high front bias enables left-foot braking mid-drift) */
   brakeBiasPct: number;
   /** Rear limited-slip differential lock rate (0 = open, 100 = welded spool) */
