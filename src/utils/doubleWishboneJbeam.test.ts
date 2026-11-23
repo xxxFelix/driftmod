@@ -788,3 +788,62 @@ test('hub clusters use stock wheelhub_* groups, hub physics and stock-strength k
   const report = validateModPhysics(files, bx, bx.defaultTune);
   assert.equal(report.overallStatus, 'pass');
 });
+
+test('wheel_F_5 and wheel_R_5 load strictly before wheeldata_F/R in depth-first slot order so tires receive collision & traction', () => {
+  for (const preset of CHASSIS_PRESETS) {
+    const id = preset.beamngInternalId;
+    const files = buildDoubleWishboneJbeamFiles(preset, preset.defaultTune);
+    const parsed: Record<string, Record<string, unknown>> = {};
+    for (const f of files) Object.assign(parsed, JSON.parse(f.content));
+
+    const frontSusp = parsed[`${id}_driftmod_dw_suspension_F`];
+    const frontSlots = ((frontSusp.slots2 as unknown[][]) || []).map((r) => r[0]);
+    const hubFIdx = frontSlots.indexOf(`${id}_driftmod_hub_F`);
+    const wdFIdx = frontSlots.indexOf(`${id}_driftmod_wheeldata_F`);
+    assert.ok(hubFIdx !== -1 && wdFIdx !== -1 && hubFIdx < wdFIdx, `${preset.id}: wheeldata_F must sit AFTER hub_F on dw_suspension_F`);
+
+    const rearSusp = parsed[`${id}_driftmod_suspension_R`];
+    const rearSlots = ((rearSusp.slots2 as unknown[][]) || []).map((r) => r[0]);
+    const hubRIdx = rearSlots.indexOf(`${id}_driftmod_hub_R`);
+    const wdRIdx = rearSlots.indexOf(`${id}_driftmod_wheeldata_R`);
+    assert.ok(hubRIdx !== -1 && wdRIdx !== -1 && hubRIdx < wdRIdx, `${preset.id}: wheeldata_R must sit AFTER hub_R on suspension_R`);
+
+    // Hub slots must NOT load wheeldata ahead of wheel_F_5 / wheel_R_5
+    const hubF = parsed[`${id}_driftmod_hub_F`];
+    const hubFSlots = ((hubF.slots2 as unknown[][]) || []).map((r) => r[0]);
+    assert.ok(!hubFSlots.includes(`${id}_driftmod_wheeldata_F`), `${preset.id}: wheeldata_F must not live inside hub_F`);
+    assert.ok(hubFSlots.includes('wheel_F_5'));
+
+    const hubR = parsed[`${id}_driftmod_hub_R`];
+    const hubRSlots = ((hubR.slots2 as unknown[][]) || []).map((r) => r[0]);
+    assert.ok(!hubRSlots.includes(`${id}_driftmod_wheeldata_R`), `${preset.id}: wheeldata_R must not live inside hub_R`);
+    assert.ok(hubRSlots.includes('wheel_R_5'));
+
+    // Hub spindle nodes match stock bx_hub_F_5 / bx_hub_R_5 collision:true, selfCollision:true
+    for (const hub of [hubF, hubR]) {
+      const colCfg = (hub.nodes as unknown[]).find(
+        (r) => !Array.isArray(r) && typeof r === 'object' && r !== null && 'collision' in r
+      ) as { collision?: boolean; selfCollision?: boolean } | undefined;
+      assert.equal(colCfg?.collision, true, `${preset.id}: hub spindle nodes must have collision:true`);
+      assert.equal(colCfg?.selfCollision, true, `${preset.id}: hub spindle nodes must have selfCollision:true`);
+    }
+
+    // wheeldata_F and wheeldata_R must reset tire & brake pressureWheels state cleanly at the end
+    for (const wdName of [`${id}_driftmod_wheeldata_F`, `${id}_driftmod_wheeldata_R`]) {
+      const pw = (parsed[wdName].pressureWheels as unknown[]) || [];
+      assert.ok(
+        pw.some((r) => !Array.isArray(r) && typeof r === 'object' && r !== null && (r as Record<string, unknown>).frictionCoef === ''),
+        `${wdName} must reset frictionCoef`
+      );
+      assert.ok(
+        pw.some((r) => !Array.isArray(r) && typeof r === 'object' && r !== null && (r as Record<string, unknown>).enableHubcaps === false),
+        `${wdName} must reset enableHubcaps`
+      );
+      assert.ok(
+        !pw.some((r) => !Array.isArray(r) && typeof r === 'object' && r !== null && 'enableTireSideSupportBeams' in (r as Record<string, unknown>)),
+        `${wdName} must not force enableTireSideSupportBeams`
+      );
+    }
+  }
+});
+

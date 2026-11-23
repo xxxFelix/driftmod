@@ -147,6 +147,7 @@ export function buildDoubleWishboneJbeamFiles(
         [`${id}_driftmod_coilover_F`, [`${id}_driftmod_coilover_F`], [], `${id}_driftmod_coilover_F`, 'Front Coilovers', { coreSlot: true }],
         [`${id}_driftmod_swaybar_F`, [`${id}_driftmod_swaybar_F`], [], `${id}_driftmod_swaybar_F`, 'Front Sway Bar'],
         [`${id}_driftmod_hub_F`, [`${id}_driftmod_hub_F`], [], `${id}_driftmod_hub_F`, 'Front Drop-Knuckle Hubs', { coreSlot: true }],
+        [`${id}_driftmod_wheeldata_F`, [`${id}_driftmod_wheeldata_F`], [], `${id}_driftmod_wheeldata_F`, 'Front Spindles', { coreSlot: true }],
       ],
       variables: [
         ['name', 'type', 'unit', 'category', 'default', 'min', 'max', 'title', 'description'],
@@ -269,13 +270,12 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_hub_F`,
       slots2: [
         ['name', 'allowTypes', 'denyTypes', 'default', 'description'],
-        [`${id}_driftmod_wheeldata_F`, [`${id}_driftmod_wheeldata_F`], [], `${id}_driftmod_wheeldata_F`, 'Front Wheel Data', { coreSlot: true }],
         [`${id}_driftmod_brake_F`, [`${id}_driftmod_brake_F`], [], `${id}_driftmod_brake_F`, 'Front Drift Brakes', { coreSlot: true }],
         ['wheel_F_5', ['wheel_F_5'], [], 'steelwheel_01a_15x7_F', 'Front Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_F+0.385', y: round4(yF + 0.005), z: zHubCenterF } }],
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
+        { selfCollision: true, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
         // Hub nodes must live in the stock wheelhub_* groups: the wheel rim mesh, the hub
         // pressureWheels cluster and the brake-hub flexbody all bind to those group names, so
         // any other group name renders a bare tire with no rim.
@@ -347,13 +347,15 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_wheeldata_F`,
       pressureWheels: [
         ['name', 'hubGroup', 'group', 'node1:', 'node2:', 'nodeS', 'nodeArm:', 'wheelDir'],
-        { selfCollision: false, collision: true, disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
+        { selfCollision: false, collision: true, disableMeshBreaking: false, disableHubMeshBreaking: false },
         { brakeTorque: '$=$braketorque_F', parkingTorque: 0, propulsed: 0 },
         { hubcapBreakGroup: 'hubcap_FR', hubcapGroup: 'hubcap_FR', axleBeams: ['axle_FR'] },
         ['FR', 'wheel_FR', 'tire_FR', 'fw1rr', 'fw1r', 9999, 'fh5r', 1, { 'torqueCoupling:': 'fh1r', 'torqueArm:': 'fh4r', 'torqueArm2:': 'fw1rr', 'steerAxisUp:': 'fh2r', 'steerAxisDown:': 'fh1r' }],
         { hubcapBreakGroup: 'hubcap_FL', hubcapGroup: 'hubcap_FL', axleBeams: ['axle_FL'] },
         ['FL', 'wheel_FL', 'tire_FL', 'fw1ll', 'fw1l', 9999, 'fh5l', -1, { 'torqueCoupling:': 'fh1l', 'torqueArm:': 'fh4l', 'torqueArm2:': 'fw1ll', 'steerAxisUp:': 'fh2l', 'steerAxisDown:': 'fh1l' }],
-        { selfCollision: true, axleBeams: [], hubcapBreakGroup: '', hubcapGroup: '' },
+        { selfCollision: true, axleBeams: [], disableMeshBreaking: false, disableTriangleBreaking: false, hubcapBreakGroup: '', hubcapGroup: '' },
+        { enableHubcaps: false, enableTireLbeams: false, enableTireSideReinfBeams: false, enableTireReinfBeams: false, enableTreadReinfBeams: false, enableTirePeripheryReinfBeams: false },
+        { loadSensitivitySlope: '', noLoadCoef: '', fullLoadCoef: '', frictionCoef: '', slidingFrictionCoef: '', softnessCoef: 0.5, treadCoef: 1.0 },
         { brakeTorque: 0, parkingTorque: 0, propulsed: 0, enableBrakeThermals: false, brakeDiameter: false, brakeMass: false, brakeType: false, rotorMaterial: false, brakeVentingCoef: false },
       ],
       powertrain: [
@@ -762,6 +764,7 @@ export function buildDoubleWishboneJbeamFiles(
         [`${id}_driftmod_coilover_R`, [`${id}_driftmod_coilover_R`], [], `${id}_driftmod_coilover_R`, 'Rear Coilovers', { coreSlot: true }],
         [`${id}_driftmod_swaybar_R`, [`${id}_driftmod_swaybar_R`], [], `${id}_driftmod_swaybar_R`, 'Rear Sway Bar'],
         [`${id}_driftmod_hub_R`, [`${id}_driftmod_hub_R`], [], `${id}_driftmod_hub_R`, 'Rear 5-Lug Hubs', { coreSlot: true }],
+        [`${id}_driftmod_wheeldata_R`, [`${id}_driftmod_wheeldata_R`], [], `${id}_driftmod_wheeldata_R`, 'Rear Spindles', { coreSlot: true }],
         [`${id}_differential_R`, [`${id}_differential_R`], [], `${id}_driftmod_diff_R`, 'Rear Differential'],
       ],
       variables: [
@@ -1002,13 +1005,12 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_hub_R`,
       slots2: [
         ['name', 'allowTypes', 'denyTypes', 'default', 'description'],
-        [`${id}_driftmod_wheeldata_R`, [`${id}_driftmod_wheeldata_R`], [], `${id}_driftmod_wheeldata_R`, 'Rear Wheel Data', { coreSlot: true }],
         [`${id}_driftmod_brake_R`, [`${id}_driftmod_brake_R`], [], `${id}_driftmod_brake_R`, 'Rear Drift Brakes & Hydro', { coreSlot: true }],
         ['wheel_R_5', ['wheel_R_5'], [], 'steelwheel_01a_15x7_R', 'Rear Wheels (5-Lug)', { nodeOffset: { x: '$=$trackoffset_R+0.220', y: yR, z: zHubCenterR } }],
       ],
       nodes: [
         ['id', 'posX', 'posY', 'posZ'],
-        { selfCollision: false, collision: false, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
+        { selfCollision: true, collision: true, nodeMaterial: '|NM_METAL', frictionCoef: 0.5, nodeWeight: 7.5 },
         { group: 'wheelhub_RR' },
         ['rw1r', -xHubInR, round4(yR - dyToeR), round4(zHubCenterR - dzCamberR)],
         ['rw1rr', -xHubOutR, round4(yR + dyToeR), round4(zHubCenterR + dzCamberR)],
@@ -1065,13 +1067,15 @@ export function buildDoubleWishboneJbeamFiles(
       slotType: `${id}_driftmod_wheeldata_R`,
       pressureWheels: [
         ['name', 'hubGroup', 'group', 'node1:', 'node2:', 'nodeS', 'nodeArm:', 'wheelDir'],
-        { selfCollision: false, collision: true, disableMeshBreaking: false, disableHubMeshBreaking: false, enableTireSideSupportBeams: true },
+        { selfCollision: false, collision: true, disableMeshBreaking: false, disableHubMeshBreaking: false },
         { brakeTorque: '$=$braketorque_R', parkingTorque: 2800 },
         { hubcapBreakGroup: 'hubcap_RR', hubcapGroup: 'hubcap_RR', axleBeams: ['axle_RR'] },
         ['RR', 'wheel_RR', 'tire_RR', 'rw1rr', 'rw1r', 9999, 'rh5r', 1, { 'torqueCoupling:': 'rdiff', 'torqueArm:': 'rx2r', 'torqueArm2:': 'ru2r' }],
         { hubcapBreakGroup: 'hubcap_RL', hubcapGroup: 'hubcap_RL', axleBeams: ['axle_RL'] },
         ['RL', 'wheel_RL', 'tire_RL', 'rw1ll', 'rw1l', 9999, 'rh5l', -1, { 'torqueCoupling:': 'rdiff', 'torqueArm:': 'rx2l', 'torqueArm2:': 'ru2l' }],
-        { selfCollision: true, axleBeams: [], hubcapBreakGroup: '', hubcapGroup: '' },
+        { selfCollision: true, axleBeams: [], disableMeshBreaking: false, disableTriangleBreaking: false, hubcapBreakGroup: '', hubcapGroup: '' },
+        { enableHubcaps: false, enableTireLbeams: false, enableTireSideReinfBeams: false, enableTireReinfBeams: false, enableTreadReinfBeams: false, enableTirePeripheryReinfBeams: false },
+        { loadSensitivitySlope: '', noLoadCoef: '', fullLoadCoef: '', frictionCoef: '', slidingFrictionCoef: '', softnessCoef: 0.5, treadCoef: 1.0 },
         { brakeTorque: 0, parkingTorque: 0, enableBrakeThermals: false, brakeDiameter: false, brakeMass: false, brakeType: false, rotorMaterial: false, brakeVentingCoef: false },
       ],
       powertrain: [

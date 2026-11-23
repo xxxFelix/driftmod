@@ -288,7 +288,9 @@ export function validateModPhysics(
           groupToNodes.set(g, set);
         }
         // Check interior/upper suspension nodes against stock bx_body wheel-well collision traps
-        if (curCollision && pos[2] > 0.25) {
+        // (Exempt wheelhub_* spindle nodes fw1*/rw1* which match stock collision:true hubs)
+        const isWheelSpindle = curGroups.some((g) => g.startsWith('wheelhub_'));
+        if (curCollision && !isWheelSpindle && pos[2] > 0.25) {
           collisionIssues.push(`${nid} (${partName}, z=${pos[2].toFixed(3)}m) has collision:true`);
         }
       }
@@ -561,6 +563,66 @@ export function validateModPhysics(
     const fx4r = nodes.get('fx4r');
     if (fx4r && Math.abs(fx4r.pos[0]) < 0.36) {
       powertrainIssues.push(`fx4r (${fx4r.pos[0].toFixed(3)}m) inside bx engine bay block (< 0.36m)`);
+    }
+  }
+
+  // Verify depth-first slots2 traversal loads wheel_F_*/wheel_R_* (and tires) BEFORE wheeldata_F/R
+  const collectSlotOrder = (rootPartName: string): string[] => {
+    const order: string[] = [];
+    const visited = new Set<string>();
+    const walk = (pName: string) => {
+      if (visited.has(pName)) return;
+      visited.add(pName);
+      order.push(pName);
+      const part = parts[pName];
+      if (!part) return;
+      const slots2 = (part.slots2 as unknown[][]) || [];
+      for (const sRow of slots2) {
+        if (!Array.isArray(sRow) || typeof sRow[0] !== 'string' || sRow[0] === 'name') continue;
+        const slotName = sRow[0];
+        const defaultPart = typeof sRow[3] === 'string' ? sRow[3] : '';
+        order.push(`slot:${slotName}`);
+        if (defaultPart && parts[defaultPart]) {
+          walk(defaultPart);
+        }
+      }
+    };
+    walk(rootPartName);
+    return order;
+  };
+
+  const id = _chassis.beamngInternalId;
+  const frontOrder = collectSlotOrder(`${id}_driftmod_dw_suspension_F`);
+  const frontWheelSlotIdx = frontOrder.indexOf('slot:wheel_F_5');
+  const frontWheeldataIdx = frontOrder.indexOf(`${id}_driftmod_wheeldata_F`);
+  if (frontWheelSlotIdx === -1 || frontWheeldataIdx === -1 || frontWheelSlotIdx > frontWheeldataIdx) {
+    wheelCheckIssues.push(
+      `wheel_F_5 must load BEFORE ${id}_driftmod_wheeldata_F in depth-first slot order (otherwise FR/FL spawn with hasTire:false hub-only collision)`
+    );
+  }
+
+  const rearOrder = collectSlotOrder(`${id}_driftmod_suspension_R`);
+  const rearWheelSlotIdx = rearOrder.indexOf('slot:wheel_R_5');
+  const rearWheeldataIdx = rearOrder.indexOf(`${id}_driftmod_wheeldata_R`);
+  if (rearWheelSlotIdx === -1 || rearWheeldataIdx === -1 || rearWheelSlotIdx > rearWheeldataIdx) {
+    wheelCheckIssues.push(
+      `wheel_R_5 must load BEFORE ${id}_driftmod_wheeldata_R in depth-first slot order (otherwise RR/RL spawn with hasTire:false hub-only collision)`
+    );
+  }
+
+  // Verify wheeldata_F and wheeldata_R reset tire & brake pressureWheels state after their wheel rows
+  for (const wdName of [`${id}_driftmod_wheeldata_F`, `${id}_driftmod_wheeldata_R`]) {
+    const wdPart = parts[wdName];
+    const pw = (wdPart?.pressureWheels as unknown[]) || [];
+    const lastWheelIdx = pw.reduce<number>(
+      (acc, r, i) => (Array.isArray(r) && typeof r[0] === 'string' && r[0] !== 'name' ? i : acc),
+      -1
+    );
+    const tailObjects = pw.slice(lastWheelIdx + 1).filter((r): r is JBeamRowObj => !Array.isArray(r) && typeof r === 'object' && r !== null);
+    const hasFrictionReset = tailObjects.some((o) => 'frictionCoef' in o && o.frictionCoef === '');
+    const hasHubcapReset = tailObjects.some((o) => 'enableHubcaps' in o && o.enableHubcaps === false);
+    if (!hasFrictionReset || !hasHubcapReset) {
+      wheelCheckIssues.push(`${wdName} missing stock pressureWheels tire property reset block after wheel rows`);
     }
   }
 
