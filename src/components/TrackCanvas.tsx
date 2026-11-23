@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Play, Pause, RotateCcw, Compass } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Play, Pause, RotateCcw, Compass, AlertTriangle } from 'lucide-react';
 import { TRACK_PRESETS } from '../data/presets';
 import {
   ChassisPreset,
@@ -10,6 +10,7 @@ import {
   TrackId,
 } from '../types/drift';
 import {
+  analyzeDriftSetup,
   CarSimState,
   createInitialCarState,
   InputControls,
@@ -56,12 +57,18 @@ export const TrackCanvas: React.FC<TrackCanvasProps> = ({
     totalScore: 0,
     bestDriftRun: 0,
     clipZoneActive: null,
+    faultStatus: null,
   });
 
-  // Reset car position when switching tracks
+  const setupAnalysis = useMemo(
+    () => analyzeDriftSetup(chassis, tune, track.surfaceGripMult),
+    [chassis, tune, track.surfaceGripMult]
+  );
+
+  // Reset car position when switching tracks or chassis
   useEffect(() => {
     simRef.current = createInitialCarState(track);
-  }, [track]);
+  }, [track, chassis.id]);
 
   // Keyboard listener (WASD / Arrow keys + Space handbrake + Shift clutch kick)
   useEffect(() => {
@@ -320,9 +327,56 @@ export const TrackCanvas: React.FC<TrackCanvasProps> = ({
             <>
               <div className="h-7 w-px bg-[#232834]" />
               <div className="text-xs font-semibold text-amber-400">
-                {hud.clipZoneActive} · 1.5x
+                {hud.clipZoneActive} · 1.6x
               </div>
             </>
+          )}
+        </div>
+
+        {/* Compact Top-Right Fault Alert & Setup Rating */}
+        <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 rounded border border-[#232834] bg-[#0B0D11]/85 px-3 py-1.5 backdrop-blur-xs">
+            <span className="text-[11px] text-[#9AA4B2]">Setup Rating</span>
+            <span
+              className={`font-mono text-xs font-bold tabular-nums ${
+                setupAnalysis.grade === 'PRO'
+                  ? 'text-emerald-400'
+                  : setupAnalysis.grade === 'COMP'
+                    ? 'text-sky-400'
+                    : setupAnalysis.grade === 'STREET'
+                      ? 'text-amber-400'
+                      : 'text-rose-400'
+              }`}
+            >
+              {setupAnalysis.mechanicalScore} {setupAnalysis.grade}
+            </span>
+            {setupAnalysis.issues[0] && (
+              <>
+                <span className="h-3 w-px bg-[#232834]" />
+                <span className="max-w-[200px] truncate text-[11px] text-amber-300">
+                  {setupAnalysis.issues[0].label}
+                </span>
+              </>
+            )}
+          </div>
+
+          {hud.faultStatus && (
+            <div
+              className={`flex items-center gap-1.5 rounded border px-3 py-1.5 font-mono text-xs font-bold tracking-wide backdrop-blur-xs ${
+                hud.faultStatus === 'BOGGED'
+                  ? 'border-amber-500/60 bg-amber-950/85 text-amber-300'
+                  : 'border-rose-500/60 bg-rose-950/85 text-rose-300'
+              }`}
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                {hud.faultStatus === 'SPINOUT'
+                  ? 'SPINOUT — RUN VOIDED'
+                  : hud.faultStatus === 'BOGGED'
+                    ? 'BOGGED — LOW WHEELSPIN'
+                    : 'OFF TRACK — RUN VOIDED'}
+              </span>
+            </div>
           )}
         </div>
 

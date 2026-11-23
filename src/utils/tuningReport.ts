@@ -36,7 +36,7 @@ export function generateTuningReportMarkdown(
         ]
       : []),
     `- **Static Weight Balance:** ${tune.frontWeightPct.toFixed(1)}% Front / ${rearWeightPct.toFixed(1)}% Rear`,
-    `- **JBeam Part Slot:** \`vehicles/${chassis.beamngInternalId}/driftmod/${chassis.beamngInternalId}_driftmod_kit.jbeam\` (\`${chassis.beamngInternalId}_mod\`)`,
+    `- **JBeam Part Slot:** \`vehicles/${chassis.beamngInternalId}/driftmod/${chassis.beamngInternalId}_driftmod_suspension_F.jbeam\` (\`${chassis.beamngInternalId}_driftmod_dw_suspension_F\`)`,
     '',
     '## 1. Steering & Alignment Geometry',
     '',

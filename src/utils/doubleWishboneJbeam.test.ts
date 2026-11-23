@@ -178,6 +178,7 @@ test('double wishbone kinematics satisfy bump-steer match, 75-85% UCA/LCA ratio,
 
   const fx1l = nodes.get('fx1l')!;
   const fx2l = nodes.get('fx2l')!;
+  const frk1l = nodes.get('frk1l')!;
   const fx3l = nodes.get('fx3l')!;
   const fu1l = nodes.get('fu1l')!;
   const fh1l = nodes.get('fh1l')!;
@@ -191,12 +192,13 @@ test('double wishbone kinematics satisfy bump-steer match, 75-85% UCA/LCA ratio,
 
   assert.ok(fc0, 'Triangulated cowl brace apex fc0 must exist');
   assert.ok(fsh1l && rsh1l, 'Inboard LCA & rear arm shock clevis nodes fsh1l/rsh1l must exist');
+  assert.ok(Math.abs(fx3l[0] - 0.38) < 0.001 && Math.abs(fx3l[2] - 0.4) < 0.001, 'fx3l must sit at stock firewall subframe ear');
 
-  // 1. Tie-rod vs LCA arc & bump-steer match
-  assert.equal(fx3l[0], fx1l[0]);
-  assert.equal(fx3l[2], fh3l[2]);
+  // 1. Tie-rod vs LCA arc & bump-steer match using dedicated rack inner node frk1l
+  assert.equal(frk1l[0], fx1l[0]);
+  assert.equal(frk1l[2], fh3l[2]);
   const lcaLen = Math.hypot(fh1l[0] - fx1l[0], fh1l[2] - fx1l[2]);
-  const tieLen = Math.hypot(fh3l[0] - fx3l[0], fh3l[1] - fx3l[1], fh3l[2] - fx3l[2]);
+  const tieLen = Math.hypot(fh3l[0] - frk1l[0], fh3l[1] - frk1l[1], fh3l[2] - frk1l[2]);
   assert.ok(Math.abs(tieLen - lcaLen) < 0.015, `Tie-rod (${tieLen.toFixed(4)}) should match LCA (${lcaLen.toFixed(4)}) within 15mm`);
 
   // 2. UCA length ratio 75%-85% of LCA length for clean negative camber gain
@@ -216,8 +218,8 @@ test('double wishbone kinematics satisfy bump-steer match, 75-85% UCA/LCA ratio,
     const rx = xKp + dx * Math.cos(rad) - dy * Math.sin(rad);
     const ry = yKp + dx * Math.sin(rad) + dy * Math.cos(rad);
     const cosA =
-      ((rx - xKp) * (rx - fx3l[0]) + (ry - yKp) * (ry - fx3l[1])) /
-      (Math.hypot(rx - xKp, ry - yKp) * Math.hypot(rx - fx3l[0], ry - fx3l[1]));
+      ((rx - xKp) * (rx - frk1l[0]) + (ry - yKp) * (ry - frk1l[1])) /
+      (Math.hypot(rx - xKp, ry - yKp) * Math.hypot(rx - frk1l[0], ry - frk1l[1]));
     const marginDeg = (Math.acos(Math.min(1, Math.abs(cosA))) * 180) / Math.PI;
     assert.ok(marginDeg >= 15, `Toggle margin at ${steerDeg}deg was ${marginDeg.toFixed(1)}deg (< 15deg)`);
   }
@@ -245,250 +247,252 @@ test('double wishbone kinematics satisfy bump-steer match, 75-85% UCA/LCA ratio,
   }
 });
 
-test('front & rear non-jointed components and swept 235/40R17 front tire maintain positive clearance across +/-70 deg steer and -85mm..+90mm travel', () => {
-  const bx = CHASSIS_PRESETS[0];
-  const files = buildDoubleWishboneJbeamFiles(bx, bx.defaultTune);
-  const parsed: Record<string, Record<string, unknown>> = {};
-  for (const f of files) {
-    Object.assign(parsed, JSON.parse(f.content));
-  }
+test('front & rear non-jointed components and swept 235/40R17 front tire maintain positive clearance across +/-70 deg steer and -85mm..+90mm travel on all 5 presets', () => {
+  for (const preset of CHASSIS_PRESETS) {
+    const id = preset.beamngInternalId;
+    const files = buildDoubleWishboneJbeamFiles(preset, preset.defaultTune);
+    const parsed: Record<string, Record<string, unknown>> = {};
+    for (const f of files) {
+      Object.assign(parsed, JSON.parse(f.content));
+    }
 
-  const nodes = new Map<string, Vec3>([
-    ...extractNodesMap(parsed['bx_driftmod_dw_suspension_F']),
-    ...extractNodesMap(parsed['bx_driftmod_tubular_subframe_F']),
-    ...extractNodesMap(parsed['bx_driftmod_hub_F']),
-    ...extractNodesMap(parsed['bx_driftmod_suspension_R']),
-    ...extractNodesMap(parsed['bx_driftmod_subframe_R']),
-    ...extractNodesMap(parsed['bx_driftmod_hub_R']),
-  ]);
+    const nodes = new Map<string, Vec3>([
+      ...extractNodesMap(parsed[`${id}_driftmod_dw_suspension_F`]),
+      ...extractNodesMap(parsed[`${id}_driftmod_tubular_subframe_F`]),
+      ...extractNodesMap(parsed[`${id}_driftmod_hub_F`]),
+      ...extractNodesMap(parsed[`${id}_driftmod_suspension_R`]),
+      ...extractNodesMap(parsed[`${id}_driftmod_subframe_R`]),
+      ...extractNodesMap(parsed[`${id}_driftmod_hub_R`]),
+    ]);
 
-  const yF = -bx.wheelbaseM * 0.5;
-  const fx1 = nodes.get('fx1l')!;
-  const fx2 = nodes.get('fx2l')!;
-  const fx3 = nodes.get('fx3l')!;
-  const fx3r = nodes.get('fx3r')!;
-  const fu1 = nodes.get('fu1l')!;
-  const fu2 = nodes.get('fu2l')!;
-  const fc1 = nodes.get('fc1l')!;
-  const fh1Base = nodes.get('fh1l')!;
-  const fh2Base = nodes.get('fh2l')!;
-  const fh3Base = nodes.get('fh3l')!;
-  const fh4Base = nodes.get('fh4l')!;
-  const fh5Base = nodes.get('fh5l')!;
-  const fsh1Base = nodes.get('fsh1l')!;
-  const fwInBase = nodes.get('fw1l')!;
-  const fwOutBase = nodes.get('fw1ll')!;
+    const yF = -preset.wheelbaseM * 0.5;
+    const fx1 = nodes.get('fx1l')!;
+    const fx2 = nodes.get('fx2l')!;
+    const frk1 = nodes.get('frk1l')!;
+    const frk1r = nodes.get('frk1r')!;
+    const fu1 = nodes.get('fu1l')!;
+    const fu2 = nodes.get('fu2l')!;
+    const fc1 = nodes.get('fc1l')!;
+    const fh1Base = nodes.get('fh1l')!;
+    const fh2Base = nodes.get('fh2l')!;
+    const fh3Base = nodes.get('fh3l')!;
+    const fh4Base = nodes.get('fh4l')!;
+    const fh5Base = nodes.get('fh5l')!;
+    const fsh1Base = nodes.get('fsh1l')!;
+    const fwInBase = nodes.get('fw1l')!;
+    const fwOutBase = nodes.get('fw1ll')!;
 
-  const lcaElbow1Base: Vec3 = [0.31 + (fh1Base[0] - 0.31) * 0.22, yF - 0.014, 0.255];
-  const lcaElbow2Base: Vec3 = [0.31 + (fh1Base[0] - 0.31) * 0.68, yF - 0.014, 0.255];
-  const lcaRearElbowBase: Vec3 = [0.385, yF - 0.006, 0.255];
-  const ucaElbowF1Base: Vec3 = [0.42, yF - 0.045, 0.54];
-  const ucaElbowF2Base: Vec3 = [0.505, yF - 0.062, 0.47];
-  const ucaElbowRBase: Vec3 = [0.425, yF + 0.058, 0.525];
+    const lcaElbow1Base: Vec3 = [0.40, yF - 0.010, 0.255];
+    const lcaElbow2Base: Vec3 = [0.58, yF - 0.010, 0.245];
+    const lcaRearElbowBase: Vec3 = [0.38, yF + 0.005, 0.255];
+    const ucaElbowF1Base: Vec3 = [0.405, yF - 0.075, 0.670];
+    const ucaElbowF2Base: Vec3 = [0.495, yF - 0.045, 0.685];
+    const ucaElbowRBase: Vec3 = [0.405, yF + 0.075, 0.670];
 
-  const lcaPivotMid: Vec3 = [(fx1[0] + fx2[0]) * 0.5, (fx1[1] + fx2[1]) * 0.5, (fx1[2] + fx2[2]) * 0.5];
-  const lcaAxis: Vec3 = [fx2[0] - fx1[0], fx2[1] - fx1[1], fx2[2] - fx1[2]];
-  const lcaRadius = Math.hypot(fh1Base[0] - lcaPivotMid[0], fh1Base[2] - lcaPivotMid[2]);
+    const lcaPivotMid: Vec3 = [(fx1[0] + fx2[0]) * 0.5, (fx1[1] + fx2[1]) * 0.5, (fx1[2] + fx2[2]) * 0.5];
+    const lcaAxis: Vec3 = [fx2[0] - fx1[0], fx2[1] - fx1[1], fx2[2] - fx1[2]];
+    const lcaRadius = Math.hypot(fh1Base[0] - lcaPivotMid[0], fh1Base[2] - lcaPivotMid[2]);
 
-  type Seg = { name: string; a: Vec3; b: Vec3; r: number };
+    type Seg = { name: string; a: Vec3; b: Vec3; r: number };
 
-  let worstFrontGap = Infinity;
-  let worstFrontPair = '';
-  let worstTireGap = Infinity;
-  let worstTireInfo = '';
+    let worstFrontGap = Infinity;
+    let worstFrontPair = '';
+    let worstTireGap = Infinity;
+    let worstTireInfo = '';
 
-  for (let dz = -0.085; dz <= 0.0901; dz += 0.025) {
-    const bumpAngle = -Math.asin(Math.max(-0.5, Math.min(0.5, dz / lcaRadius)));
-    const fh1 = rotateAboutAxis(fh1Base, lcaPivotMid, lcaAxis, bumpAngle);
-    const fsh1 = rotateAboutAxis(fsh1Base, lcaPivotMid, lcaAxis, bumpAngle);
-    const lcaE1 = rotateAboutAxis(lcaElbow1Base, lcaPivotMid, lcaAxis, bumpAngle);
-    const lcaE2 = rotateAboutAxis(lcaElbow2Base, lcaPivotMid, lcaAxis, bumpAngle);
-    const lcaRE = rotateAboutAxis(lcaRearElbowBase, lcaPivotMid, lcaAxis, bumpAngle);
+    for (let dz = -0.085; dz <= 0.0901; dz += 0.025) {
+      const bumpAngle = -Math.asin(Math.max(-0.5, Math.min(0.5, dz / lcaRadius)));
+      const fh1 = rotateAboutAxis(fh1Base, lcaPivotMid, lcaAxis, bumpAngle);
+      const fsh1 = rotateAboutAxis(fsh1Base, lcaPivotMid, lcaAxis, bumpAngle);
+      const lcaE1 = rotateAboutAxis(lcaElbow1Base, lcaPivotMid, lcaAxis, bumpAngle);
+      const lcaE2 = rotateAboutAxis(lcaElbow2Base, lcaPivotMid, lcaAxis, bumpAngle);
+      const lcaRE = rotateAboutAxis(lcaRearElbowBase, lcaPivotMid, lcaAxis, bumpAngle);
 
-    const fh2: Vec3 = [
-      fh2Base[0] - (dz > 0 ? dz * 0.06 : dz * 0.02),
-      fh2Base[1],
-      fh2Base[2] + (fh1[2] - fh1Base[2]),
-    ];
-    const ucaBumpFrac = (fh2[2] - fh2Base[2]) / (0.54 - 0.255);
-    const ucaEF1: Vec3 = [ucaElbowF1Base[0], ucaElbowF1Base[1], ucaElbowF1Base[2] + ucaBumpFrac * (0.54 - 0.255)];
-    const ucaEF2: Vec3 = [ucaElbowF2Base[0], ucaElbowF2Base[1], ucaElbowF2Base[2] + ucaBumpFrac * (0.47 - 0.255)];
-    const ucaER: Vec3 = [ucaElbowRBase[0], ucaElbowRBase[1], ucaElbowRBase[2] + ucaBumpFrac * (0.525 - 0.255)];
-
-    const deltaKnuckle: Vec3 = [fh1[0] - fh1Base[0], fh1[1] - fh1Base[1], fh1[2] - fh1Base[2]];
-    const kpAxis: Vec3 = [fh2[0] - fh1[0], fh2[1] - fh1[1], fh2[2] - fh1[2]];
-
-    for (let steerDeg = -70; steerDeg <= 70; steerDeg += 10) {
-      const steerRad = (steerDeg * Math.PI) / 180;
-      const xformKnuckle = (p: Vec3): Vec3 =>
-        rotateAboutAxis(
-          [p[0] + deltaKnuckle[0], p[1] + deltaKnuckle[1], p[2] + deltaKnuckle[2]],
-          fh1,
-          kpAxis,
-          steerRad
-        );
-
-      const fh3 = xformKnuckle(fh3Base);
-      const fh4 = xformKnuckle(fh4Base);
-      const fh5 = xformKnuckle(fh5Base);
-      const fwIn = xformKnuckle(fwInBase);
-      const fwOut = xformKnuckle(fwOutBase);
-      const hubMid: Vec3 = [(fwIn[0] + fwOut[0]) * 0.5, (fwIn[1] + fwOut[1]) * 0.5, (fwIn[2] + fwOut[2]) * 0.5];
-
-      const coilSegs: Seg[] = [
-        {
-          name: 'coil_shaft',
-          a: fsh1,
-          b: [
-            fsh1[0] + (fc1[0] - fsh1[0]) * 0.64,
-            fsh1[1] + (fc1[1] - fsh1[1]) * 0.64,
-            fsh1[2] + (fc1[2] - fsh1[2]) * 0.64,
-          ],
-          r: 0.013,
-        },
-        {
-          name: 'coil_spring',
-          a: [
-            fsh1[0] + (fc1[0] - fsh1[0]) * 0.64,
-            fsh1[1] + (fc1[1] - fsh1[1]) * 0.64,
-            fsh1[2] + (fc1[2] - fsh1[2]) * 0.64,
-          ],
-          b: [
-            fsh1[0] + (fc1[0] - fsh1[0]) * 0.94,
-            fsh1[1] + (fc1[1] - fsh1[1]) * 0.94,
-            fsh1[2] + (fc1[2] - fsh1[2]) * 0.94,
-          ],
-          r: 0.036,
-        },
+      const fh2: Vec3 = [
+        fh2Base[0] - (dz > 0 ? dz * 0.06 : dz * 0.02),
+        fh2Base[1],
+        fh2Base[2] + (fh1[2] - fh1Base[2]),
       ];
+      const ucaBumpDz = fh2[2] - fh2Base[2];
+      const ucaEF1: Vec3 = [ucaElbowF1Base[0], ucaElbowF1Base[1], ucaElbowF1Base[2] + ucaBumpDz * 0.45];
+      const ucaEF2: Vec3 = [ucaElbowF2Base[0], ucaElbowF2Base[1], ucaElbowF2Base[2] + ucaBumpDz * 0.75];
+      const ucaER: Vec3 = [ucaElbowRBase[0], ucaElbowRBase[1], ucaElbowRBase[2] + ucaBumpDz * 0.45];
 
-      const checkPairs: Array<[Seg, Seg]> = [
-        [coilSegs[0], { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 }],
-        [coilSegs[0], { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 }],
-        [coilSegs[0], { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 }],
-        [coilSegs[0], { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 }],
-        [coilSegs[0], { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 }],
-        [coilSegs[1], { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
-        [coilSegs[0], { name: 'spindle', a: fwIn, b: fwOut, r: 0.034 }],
-        [coilSegs[1], { name: 'spindle', a: fwIn, b: fwOut, r: 0.034 }],
-        [coilSegs[1], { name: 'knuckle_upright', a: fh1, b: hubMid, r: 0.022 }],
-        [coilSegs[1], { name: 'knuckle_ear_f', a: fh1, b: fh4, r: 0.015 }],
-        [coilSegs[1], { name: 'knuckle_ear_r', a: fh1, b: fh5, r: 0.015 }],
-        [coilSegs[0], { name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }],
-        [coilSegs[1], { name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'lca_r1', a: fx2, b: lcaRE, r: 0.016 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'lca_r2', a: lcaRE, b: fh1, r: 0.016 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'lca_f2', a: lcaE1, b: lcaE2, r: 0.016 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'lca_f3', a: lcaE2, b: fh1, r: 0.016 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'knuckle_ear_f', a: fh1, b: fh4, r: 0.015 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'knuckle_ear_r', a: fh2, b: fh5, r: 0.015 }],
-        [{ name: 'rack_bar', a: fx3r, b: fx3, r: 0.022 }, { name: 'subframe_rail', a: fx1, b: fx2, r: 0.018 }],
-        [{ name: 'tie_rod', a: fx3, b: fh3, r: 0.011 }, { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
-      ];
+      const deltaKnuckle: Vec3 = [fh1[0] - fh1Base[0], fh1[1] - fh1Base[1], fh1[2] - fh1Base[2]];
+      const kpAxis: Vec3 = [fh2[0] - fh1[0], fh2[1] - fh1[1], fh2[2] - fh1[2]];
 
-      for (const [s1, s2] of checkPairs) {
-        const gap = segSegDist(s1.a, s1.b, s2.a, s2.b) - (s1.r + s2.r);
-        if (gap < worstFrontGap) {
-          worstFrontGap = gap;
-          worstFrontPair = `${s1.name} vs ${s2.name} @ dz=${(dz * 1000).toFixed(0)}mm steer=${steerDeg}deg`;
-        }
-      }
+      for (let steerDeg = -70; steerDeg <= 70; steerDeg += 10) {
+        const steerRad = (steerDeg * Math.PI) / 180;
+        const xformKnuckle = (p: Vec3): Vec3 =>
+          rotateAboutAxis(
+            [p[0] + deltaKnuckle[0], p[1] + deltaKnuckle[1], p[2] + deltaKnuckle[2]],
+            fh1,
+            kpAxis,
+            steerRad
+          );
 
-      const spindleAxis = [fwOut[0] - fwIn[0], fwOut[1] - fwIn[1], fwOut[2] - fwIn[2]];
-      const sLen = Math.hypot(spindleAxis[0], spindleAxis[1], spindleAxis[2]) || 1;
-      const sx = spindleAxis[0] / sLen;
-      const sy = spindleAxis[1] / sLen;
-      const sz = spindleAxis[2] / sLen;
-      const ux = -sy;
-      const uy = sx;
-      const uLen = Math.hypot(ux, uy) || 1;
-      const r1: Vec3 = [ux / uLen, uy / uLen, 0];
-      const r2: Vec3 = [sy * r1[2] - sz * r1[1], sz * r1[0] - sx * r1[2], sx * r1[1] - sy * r1[0]];
-      const tireCenter: Vec3 = [fwIn[0] + sx * 0.105, fwIn[1] + sy * 0.105, fwIn[2] + sz * 0.105];
-      const tireRadius = 0.295;
-      const tireHalfW = 0.112;
-      const tireGuardSegs: Seg[] = [
-        { name: 'lca_f1', a: fx1, b: lcaE1, r: 0.016 },
-        { name: 'lca_f2', a: lcaE1, b: lcaE2, r: 0.016 },
-        { name: 'lca_f3', a: lcaE2, b: fh1, r: 0.016 },
-        { name: 'lca_r1', a: fx2, b: lcaRE, r: 0.016 },
-        { name: 'lca_r2', a: lcaRE, b: fh1, r: 0.016 },
-        { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 },
-        { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 },
-        { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 },
-        { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 },
-        { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 },
-        { name: 'coil_spring', a: coilSegs[1].a, b: coilSegs[1].b, r: 0.036 },
-      ];
-      for (let k = 0; k < 24; k++) {
-        const ang = (k / 24) * Math.PI * 2;
-        const innerPt: Vec3 = [
-          tireCenter[0] - sx * tireHalfW + tireRadius * (Math.cos(ang) * r1[0] + Math.sin(ang) * r2[0]),
-          tireCenter[1] - sy * tireHalfW + tireRadius * (Math.cos(ang) * r1[1] + Math.sin(ang) * r2[1]),
-          tireCenter[2] - sz * tireHalfW + tireRadius * (Math.cos(ang) * r1[2] + Math.sin(ang) * r2[2]),
+        const fh3 = xformKnuckle(fh3Base);
+        const fh4 = xformKnuckle(fh4Base);
+        const fh5 = xformKnuckle(fh5Base);
+        const fwIn = xformKnuckle(fwInBase);
+        const fwOut = xformKnuckle(fwOutBase);
+        const hubMid: Vec3 = [(fwIn[0] + fwOut[0]) * 0.5, (fwIn[1] + fwOut[1]) * 0.5, (fwIn[2] + fwOut[2]) * 0.5];
+
+        const coilSegs: Seg[] = [
+          {
+            name: 'coil_shaft',
+            a: fsh1,
+            b: [
+              fsh1[0] + (fc1[0] - fsh1[0]) * 0.64,
+              fsh1[1] + (fc1[1] - fsh1[1]) * 0.64,
+              fsh1[2] + (fc1[2] - fsh1[2]) * 0.64,
+            ],
+            r: 0.013,
+          },
+          {
+            name: 'coil_spring',
+            a: [
+              fsh1[0] + (fc1[0] - fsh1[0]) * 0.64,
+              fsh1[1] + (fc1[1] - fsh1[1]) * 0.64,
+              fsh1[2] + (fc1[2] - fsh1[2]) * 0.64,
+            ],
+            b: [
+              fsh1[0] + (fc1[0] - fsh1[0]) * 0.94,
+              fsh1[1] + (fc1[1] - fsh1[1]) * 0.94,
+              fsh1[2] + (fc1[2] - fsh1[2]) * 0.94,
+            ],
+            r: 0.036,
+          },
         ];
-        for (const seg of tireGuardSegs) {
-          const gap = segSegDist(innerPt, innerPt, seg.a, seg.b) - seg.r;
-          if (gap < worstTireGap) {
-            worstTireGap = gap;
-            worstTireInfo = `${seg.name} @ dz=${(dz * 1000).toFixed(0)}mm steer=${steerDeg}deg`;
+
+        const checkPairs: Array<[Seg, Seg]> = [
+          [coilSegs[0], { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 }],
+          [coilSegs[0], { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 }],
+          [coilSegs[0], { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 }],
+          [coilSegs[0], { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 }],
+          [coilSegs[0], { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
+          [coilSegs[1], { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 }],
+          [coilSegs[1], { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 }],
+          [coilSegs[1], { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 }],
+          [coilSegs[1], { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 }],
+          [coilSegs[1], { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
+          [coilSegs[0], { name: 'spindle', a: fwIn, b: fwOut, r: 0.034 }],
+          [coilSegs[1], { name: 'spindle', a: fwIn, b: fwOut, r: 0.034 }],
+          [coilSegs[1], { name: 'knuckle_upright', a: fh1, b: hubMid, r: 0.022 }],
+          [coilSegs[1], { name: 'knuckle_ear_f', a: fh1, b: fh4, r: 0.015 }],
+          [coilSegs[1], { name: 'knuckle_ear_r', a: fh1, b: fh5, r: 0.015 }],
+          [coilSegs[0], { name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }],
+          [coilSegs[1], { name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'lca_r1', a: fx2, b: lcaRE, r: 0.016 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'lca_r2', a: lcaRE, b: fh1, r: 0.016 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'lca_f2', a: lcaE1, b: lcaE2, r: 0.016 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'lca_f3', a: lcaE2, b: fh1, r: 0.016 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'knuckle_ear_f', a: fh1, b: fh4, r: 0.015 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'knuckle_ear_r', a: fh2, b: fh5, r: 0.015 }],
+          [{ name: 'rack_bar', a: frk1r, b: frk1, r: 0.022 }, { name: 'subframe_rail', a: fx1, b: fx2, r: 0.018 }],
+          [{ name: 'tie_rod', a: frk1, b: fh3, r: 0.011 }, { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 }],
+        ];
+
+        for (const [s1, s2] of checkPairs) {
+          const gap = segSegDist(s1.a, s1.b, s2.a, s2.b) - (s1.r + s2.r);
+          if (gap < worstFrontGap) {
+            worstFrontGap = gap;
+            worstFrontPair = `${preset.id}: ${s1.name} vs ${s2.name} @ dz=${(dz * 1000).toFixed(0)}mm steer=${steerDeg}deg`;
+          }
+        }
+
+        const spindleAxis = [fwOut[0] - fwIn[0], fwOut[1] - fwIn[1], fwOut[2] - fwIn[2]];
+        const sLen = Math.hypot(spindleAxis[0], spindleAxis[1], spindleAxis[2]) || 1;
+        const sx = spindleAxis[0] / sLen;
+        const sy = spindleAxis[1] / sLen;
+        const sz = spindleAxis[2] / sLen;
+        const ux = -sy;
+        const uy = sx;
+        const uLen = Math.hypot(ux, uy) || 1;
+        const r1: Vec3 = [ux / uLen, uy / uLen, 0];
+        const r2: Vec3 = [sy * r1[2] - sz * r1[1], sz * r1[0] - sx * r1[2], sx * r1[1] - sy * r1[0]];
+        const tireCenter: Vec3 = [fwIn[0] + sx * 0.105, fwIn[1] + sy * 0.105, fwIn[2] + sz * 0.105];
+        const tireRadius = 0.295;
+        const tireHalfW = 0.112;
+        const tireGuardSegs: Seg[] = [
+          { name: 'lca_f1', a: fx1, b: lcaE1, r: 0.016 },
+          { name: 'lca_f2', a: lcaE1, b: lcaE2, r: 0.016 },
+          { name: 'lca_f3', a: lcaE2, b: fh1, r: 0.016 },
+          { name: 'lca_r1', a: fx2, b: lcaRE, r: 0.016 },
+          { name: 'lca_r2', a: lcaRE, b: fh1, r: 0.016 },
+          { name: 'uca_f1', a: fu1, b: ucaEF1, r: 0.014 },
+          { name: 'uca_f2', a: ucaEF1, b: ucaEF2, r: 0.014 },
+          { name: 'uca_f3', a: ucaEF2, b: fh2, r: 0.014 },
+          { name: 'uca_r1', a: fu2, b: ucaER, r: 0.014 },
+          { name: 'uca_r2', a: ucaER, b: fh2, r: 0.014 },
+          { name: 'coil_spring', a: coilSegs[1].a, b: coilSegs[1].b, r: 0.036 },
+        ];
+        for (let k = 0; k < 24; k++) {
+          const ang = (k / 24) * Math.PI * 2;
+          const innerPt: Vec3 = [
+            tireCenter[0] - sx * tireHalfW + tireRadius * (Math.cos(ang) * r1[0] + Math.sin(ang) * r2[0]),
+            tireCenter[1] - sy * tireHalfW + tireRadius * (Math.cos(ang) * r1[1] + Math.sin(ang) * r2[1]),
+            tireCenter[2] - sz * tireHalfW + tireRadius * (Math.cos(ang) * r1[2] + Math.sin(ang) * r2[2]),
+          ];
+          for (const seg of tireGuardSegs) {
+            const gap = segSegDist(innerPt, innerPt, seg.a, seg.b) - seg.r;
+            if (gap < worstTireGap) {
+              worstTireGap = gap;
+              worstTireInfo = `${preset.id}: ${seg.name} @ dz=${(dz * 1000).toFixed(0)}mm steer=${steerDeg}deg`;
+            }
           }
         }
       }
     }
-  }
 
-  assert.ok(
-    worstFrontGap >= 0.008,
-    `Front suspension component clearance dropped to ${(worstFrontGap * 1000).toFixed(1)}mm (${worstFrontPair})`
-  );
-  assert.ok(
-    worstTireGap >= 0.01,
-    `Swept front tire clearance dropped to ${(worstTireGap * 1000).toFixed(1)}mm (${worstTireInfo})`
-  );
-
-  // Rear axle component clearance check
-  const rx1 = nodes.get('rx1l')!;
-  const rx2 = nodes.get('rx2l')!;
-  const ru1 = nodes.get('ru1l')!;
-  const ru2 = nodes.get('ru2l')!;
-  const rc1 = nodes.get('rc1l')!;
-  const rh1 = nodes.get('rh1l')!;
-  const rsh1 = nodes.get('rsh1l')!;
-  const rh2 = nodes.get('rh2l')!;
-  const rh4 = nodes.get('rh4l')!;
-  const rh5 = nodes.get('rh5l')!;
-  const rwIn = nodes.get('rw1l')!;
-  const rwOut = nodes.get('rw1ll')!;
-  const rSpringA: Vec3 = [
-    rsh1[0] + (rc1[0] - rsh1[0]) * 0.28,
-    rsh1[1] + (rc1[1] - rsh1[1]) * 0.28,
-    rsh1[2] + (rc1[2] - rsh1[2]) * 0.28,
-  ];
-  const rSpringB: Vec3 = [
-    rsh1[0] + (rc1[0] - rsh1[0]) * 0.78,
-    rsh1[1] + (rc1[1] - rsh1[1]) * 0.78,
-    rsh1[2] + (rc1[2] - rsh1[2]) * 0.78,
-  ];
-
-  const rearChecks: Array<[Seg, Seg]> = [
-    [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_uca_f', a: ru1, b: rh2, r: 0.013 }],
-    [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_uca_r', a: ru2, b: rh2, r: 0.013 }],
-    [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_spindle', a: rwIn, b: rwOut, r: 0.034 }],
-    [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_knuckle_ears', a: rh4, b: rh5, r: 0.016 }],
-    [{ name: 'r_toe_link', a: rx2, b: rh5, r: 0.011 }, { name: 'r_lca_f', a: rx1, b: rh1, r: 0.015 }],
-  ];
-
-  for (const [s1, s2] of rearChecks) {
-    const gap = segSegDist(s1.a, s1.b, s2.a, s2.b) - (s1.r + s2.r);
     assert.ok(
-      gap >= 0.025,
-      `Rear clearance ${s1.name} vs ${s2.name} was ${(gap * 1000).toFixed(1)}mm (< 25mm)`
+      worstFrontGap >= 0.008,
+      `Front suspension component clearance dropped to ${(worstFrontGap * 1000).toFixed(1)}mm (${worstFrontPair})`
     );
+    assert.ok(
+      worstTireGap >= 0.01,
+      `Swept front tire clearance dropped to ${(worstTireGap * 1000).toFixed(1)}mm (${worstTireInfo})`
+    );
+
+    // Rear axle component clearance check
+    const rx1 = nodes.get('rx1l')!;
+    const rx2 = nodes.get('rx2l')!;
+    const ru1 = nodes.get('ru1l')!;
+    const ru2 = nodes.get('ru2l')!;
+    const rc1 = nodes.get('rc1l')!;
+    const rh1 = nodes.get('rh1l')!;
+    const rsh1 = nodes.get('rsh1l')!;
+    const rh2 = nodes.get('rh2l')!;
+    const rh4 = nodes.get('rh4l')!;
+    const rh5 = nodes.get('rh5l')!;
+    const rwIn = nodes.get('rw1l')!;
+    const rwOut = nodes.get('rw1ll')!;
+    const rSpringA: Vec3 = [
+      rsh1[0] + (rc1[0] - rsh1[0]) * 0.28,
+      rsh1[1] + (rc1[1] - rsh1[1]) * 0.28,
+      rsh1[2] + (rc1[2] - rsh1[2]) * 0.28,
+    ];
+    const rSpringB: Vec3 = [
+      rsh1[0] + (rc1[0] - rsh1[0]) * 0.78,
+      rsh1[1] + (rc1[1] - rsh1[1]) * 0.78,
+      rsh1[2] + (rc1[2] - rsh1[2]) * 0.78,
+    ];
+
+    const rearChecks: Array<[Seg, Seg]> = [
+      [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_uca_f', a: ru1, b: rh2, r: 0.013 }],
+      [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_uca_r', a: ru2, b: rh2, r: 0.013 }],
+      [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_spindle', a: rwIn, b: rwOut, r: 0.034 }],
+      [{ name: 'r_spring', a: rSpringA, b: rSpringB, r: 0.036 }, { name: 'r_knuckle_ears', a: rh4, b: rh5, r: 0.016 }],
+      [{ name: 'r_toe_link', a: rx2, b: rh5, r: 0.011 }, { name: 'r_lca_f', a: rx1, b: rh1, r: 0.015 }],
+    ];
+
+    for (const [s1, s2] of rearChecks) {
+      const gap = segSegDist(s1.a, s1.b, s2.a, s2.b) - (s1.r + s2.r);
+      assert.ok(
+        gap >= 0.025,
+        `${preset.id} rear clearance ${s1.name} vs ${s2.name} was ${(gap * 1000).toFixed(1)}mm (< 25mm)`
+      );
+    }
   }
 });
 
@@ -675,10 +679,45 @@ test('real BeamNG v0.40 BX stock body & suspension JBeams pass full compatibilit
   assert.ok(diffPt.some((r) => r[0] === 'shaft' && r[1] === 'wheelaxleRL' && r[2] === 'differential_R'));
   assert.ok(diffPt.some((r) => r[0] === 'shaft' && r[1] === 'wheelaxleRR' && r[2] === 'differential_R'));
 
-  // Differential mount pickups must exist so the diff (DriftMod or stock) is physically mounted
-  const subRNodes = extractNodesMap(parsedMod['bx_driftmod_subframe_R']);
-  for (const nid of ['rx3r', 'rx3l', 'rx4r', 'rx4l', 'rx5r', 'rx5l', 'rx8']) {
-    assert.ok(subRNodes.has(nid), `rear subframe must provide differential mount node ${nid}`);
+  // Differential mount pickups & stock diff flexbody groups must exist so DriftMod or stock diffs mount cleanly
+  const subR = parsedMod['bx_driftmod_subframe_R'];
+  const subRNodes = extractNodesMap(subR);
+  const subRGroups = extractNodeGroups(subR);
+  for (const nid of ['rx3r', 'rx3l', 'rx4r', 'rx4l', 'rx5r', 'rx5l', 'rx6r', 'rx6l', 'rx7r', 'rx7l', 'rx8']) {
+    assert.ok(subRNodes.has(nid), `rear subframe must provide differential/subframe node ${nid}`);
+  }
+  for (const grp of ['bx_subframe_R', 'bx_lowermounts_R', 'bx_uppermounts_R']) {
+    assert.ok((subRGroups.get(grp)?.length ?? 0) >= 2, `rear subframe must provide stock group ${grp}`);
+  }
+
+  // Verify fragile/light unibody nodes (f14rr, r2rr, r2ll) are NOT tied into by DriftMod beams
+  const subFJbeamText = modFiles.find((f) => f.filename.includes('subframe_F'))?.content ?? '';
+  const suspFJbeamText = modFiles.find((f) => f.filename.includes('suspension_F'))?.content ?? '';
+  const suspRJbeamText = modFiles.find((f) => f.filename.includes('suspension_R'))?.content ?? '';
+  assert.ok(!suspFJbeamText.includes('f14rr') && !suspFJbeamText.includes('f14ll'), 'must not tie fc1 to 1.5kg f14rr/ll');
+  assert.ok(!suspRJbeamText.includes('r2rr') && !suspRJbeamText.includes('r2ll'), 'must not tie rx2 to r2rr/ll');
+  assert.ok(!subFJbeamText.includes('"rails"'), 'must not emit self-referential enginemountnodes rails');
+
+  // Verify Lua controller isolation and modScript load ordering
+  const modScriptFile = modFiles.find((f) => f.filename === 'modScript.lua')!;
+  const driftmodLuaFile = modFiles.find((f) => f.filename === 'driftmod.lua')!;
+  assert.ok(
+    modScriptFile.content.indexOf('extensions.load') < modScriptFile.content.indexOf('setExtensionUnloadMode'),
+    'modScript.lua must load extension before setting manual unload mode'
+  );
+  assert.ok(
+    driftmodLuaFile.content.includes('strContains(origin, "driftmod")') &&
+      !driftmodLuaFile.content.includes('strContains(origin, "rollcage")'),
+    'driftmod.lua must only tune driftmod beams and never mutate body/rollcage/frame'
+  );
+
+  // Verify 3-layer coilover schema uses |NORMAL spring with precompressionRange & >=165kN beamDeform
+  const coilF = parsedMod['bx_driftmod_coilover_F'];
+  const coilR = parsedMod['bx_driftmod_coilover_R'];
+  for (const cPart of [coilF, coilR]) {
+    const vars = (cPart.variables as unknown[][]) || [];
+    const rhVar = vars.find((r) => Array.isArray(r) && (r[0] === '$rideheight_F' || r[0] === '$rideheight_R'));
+    assert.ok(rhVar && rhVar[2] === '+m' && rhVar[4] === 0.0, 'coilover rideheight must use +m precompressionRange with 0.0 default');
   }
 
   const report = validateModPhysics(modFiles, bx, bx.defaultTune);

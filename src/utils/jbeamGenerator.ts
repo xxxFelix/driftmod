@@ -21,8 +21,8 @@ export function generateBeamNGModFiles(
 
   // Startup script executed automatically by BeamNG when zip is dropped into mods/
   const modScriptLua = `-- DriftMod Startup Loader (auto-executed by BeamNG.drive from mods/*.zip)
-setExtensionUnloadMode("driftmodScoring", "manual")
 extensions.load("driftmodScoring")
+setExtensionUnloadMode("driftmodScoring", "manual")
 `;
 
   // Vehicle-side Lua controller (`lua/vehicle/controller/driftmod.lua`) loaded by
@@ -171,45 +171,40 @@ local function applyDriftModTune()
   local arbBiasR = clamp(tonumber(cfg.arbBiasR) or ${tune.rearArbBiasPct}, 20, 80)
   local frontArbScale = clamp(1.0 + (50 - arbBiasR) * 0.014, 0.45, 1.75)
   local rearArbScale = clamp(1.0 + (arbBiasR - 50) * 0.014, 0.25, 1.75)
-  local cageScale = clamp(tonumber(cfg.cageRigidity) or ${tune.chassisRigidity.toFixed(2)}, 0.85, 1.20)
   local ffbDampPct = clamp(tonumber(cfg.ffbDampingPct) or ${tune.ffbDampingPct}, 0, 60)
   local rackDampScale = clamp(0.68 + (ffbDampPct / 60) * 0.82, 0.65, 1.50)
 
+  -- Restrict beam tuning strictly to DriftMod parts; never mutate stock body/rollcage/frame nodes
   if obj and obj.setBeamSpringDamp then
     for cid, base in pairs(baseBeams) do
       local origin = base.partOrigin
-      local isSpringOrStrut =
-        strContains(origin, "coilover") or
-        strContains(origin, "strut") or
-        strContains(origin, "spring") or
-        strContains(origin, "shock")
-      local isBounded = base.beamType == BEAM_BOUNDED or base.beamType == "|BOUNDED"
+      if strContains(origin, "driftmod") then
+        local isCoilover = strContains(origin, "coilover")
+        local isBounded = base.beamType == BEAM_BOUNDED or base.beamType == "|BOUNDED"
 
-      if isSpringOrStrut and isBounded then
-        if base.spring >= 8000 and base.spring <= 650000 then
-          local isDriftMod = strContains(origin, "driftmod")
+        if isCoilover and not isBounded and base.spring >= 8000 and base.spring <= 950000 then
+          local mrF = 7.61
+          local mrR = 3.87
+          local newSpring = base.isFront and math.floor(springF * mrF) or math.floor(springR * mrR)
+          pcall(obj.setBeamSpringDamp, obj, cid, newSpring, 0, newSpring, 0)
+        elseif isCoilover and isBounded and base.spring == 0 and base.damp >= 50 then
           if base.isFront then
-            local mrF = isDriftMod and 7.61 or 1.0
-            local cBumpF = math.min(13700, math.floor(dampBumpF * mrF))
-            local cRebF = math.min(21350, math.floor(dampReboundF * mrF))
-            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springF * mrF), cBumpF, math.floor(springF * mrF), cRebF)
+            local cBumpF = math.min(13700, math.floor(dampBumpF * 7.61))
+            local cRebF = math.min(21350, math.floor(dampReboundF * 7.61))
+            pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpF, 0, cRebF)
           else
-            local mrR = isDriftMod and 3.87 or 1.0
-            local cBumpR = math.min(6000, math.floor(dampBumpR * mrR))
-            local cRebR = math.min(9400, math.floor(dampReboundR * mrR))
-            pcall(obj.setBeamSpringDamp, obj, cid, math.floor(springR * mrR), cBumpR, math.floor(springR * mrR), cRebR)
+            local cBumpR = math.min(6000, math.floor(dampBumpR * 3.87))
+            local cRebR = math.min(9400, math.floor(dampReboundR * 3.87))
+            pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpR, 0, cRebR)
           end
+        elseif strContains(origin, "swaybar") and base.spring >= 2000 and base.spring <= 350000 then
+          local scale = base.isFront and frontArbScale or rearArbScale
+          local newSpring = math.floor(base.spring * scale)
+          pcall(obj.setBeamSpringDamp, obj, cid, newSpring, base.damp, newSpring, base.dampRebound)
+        elseif strContains(origin, "steering") and base.damp >= 20 and base.damp <= 6000 and base.spring <= 250000 then
+          local newDamp = math.floor(base.damp * rackDampScale)
+          pcall(obj.setBeamSpringDamp, obj, cid, base.spring, newDamp, base.spring, newDamp)
         end
-      elseif (strContains(origin, "swaybar") or strContains(origin, "antiroll")) and base.spring >= 2000 and base.spring <= 350000 then
-        local scale = base.isFront and frontArbScale or rearArbScale
-        local newSpring = math.floor(base.spring * scale)
-        pcall(obj.setBeamSpringDamp, obj, cid, newSpring, base.damp, newSpring, base.dampRebound)
-      elseif strContains(origin, "steering") and base.damp >= 20 and base.damp <= 6000 and base.spring <= 250000 then
-        local newDamp = math.floor(base.damp * rackDampScale)
-        pcall(obj.setBeamSpringDamp, obj, cid, base.spring, newDamp, base.spring, newDamp)
-      elseif (strContains(origin, "body") or strContains(origin, "rollcage") or strContains(origin, "frame")) and base.spring >= 250000 and base.spring <= 12000000 and cageScale ~= 1.0 then
-        local newSpring = math.floor(base.spring * cageScale)
-        pcall(obj.setBeamSpringDamp, obj, cid, newSpring, base.damp, newSpring, base.dampRebound)
       end
     end
   end
