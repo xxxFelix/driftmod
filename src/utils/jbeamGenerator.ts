@@ -182,20 +182,26 @@ local function applyDriftModTune()
         local isCoilover = strContains(origin, "coilover")
         local isBounded = base.beamType == BEAM_BOUNDED or base.beamType == "|BOUNDED"
 
-        if isCoilover and not isBounded and base.spring >= 8000 and base.spring <= 950000 then
-          local mrF = 7.61
-          local mrR = 3.87
+        if isCoilover and not isBounded and base.spring >= 8000 and base.spring <= 1800000 then
+          local mrF = 11.5
+          local mrR = 5.2
           local newSpring = base.isFront and math.floor(springF * mrF) or math.floor(springR * mrR)
-          pcall(obj.setBeamSpringDamp, obj, cid, newSpring, 0, newSpring, 0)
+          if math.abs(newSpring - base.spring) > 50 then
+            pcall(obj.setBeamSpringDamp, obj, cid, newSpring, 0, -1, -1)
+          end
         elseif isCoilover and isBounded and base.spring == 0 and base.damp >= 50 then
           if base.isFront then
-            local cBumpF = math.min(13700, math.floor(dampBumpF * 7.61))
-            local cRebF = math.min(21350, math.floor(dampReboundF * 7.61))
-            pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpF, 0, cRebF)
+            local cBumpF = math.min(18400, math.floor(dampBumpF * 11.5))
+            local cRebF = math.min(25300, math.floor(dampReboundF * 11.5))
+            if math.abs(cBumpF - base.damp) > 25 or math.abs(cRebF - base.dampRebound) > 25 then
+              pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpF, 0, cRebF)
+            end
           else
-            local cBumpR = math.min(6000, math.floor(dampBumpR * 3.87))
-            local cRebR = math.min(9400, math.floor(dampReboundR * 3.87))
-            pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpR, 0, cRebR)
+            local cBumpR = math.min(8350, math.floor(dampBumpR * 5.2))
+            local cRebR = math.min(11450, math.floor(dampReboundR * 5.2))
+            if math.abs(cBumpR - base.damp) > 25 or math.abs(cRebR - base.dampRebound) > 25 then
+              pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpR, 0, cRebR)
+            end
           end
         elseif strContains(origin, "swaybar") and base.spring >= 2000 and base.spring <= 350000 then
           local scale = base.isFront and frontArbScale or rearArbScale

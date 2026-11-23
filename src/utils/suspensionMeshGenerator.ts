@@ -337,7 +337,7 @@ export function buildSuspensionMeshScene(
     const fu1: Vec3 = [side * 0.345, yF - 0.145, 0.64];
     const fu2: Vec3 = [side * 0.345, yF + 0.145, 0.64];
     const fh1: Vec3 = [side * xLBJ, yLBJ, zLBJ];
-    const fsh1: Vec3 = [side * 0.455, yF + 0.008, 0.264];
+    const fsh1: Vec3 = [side * 0.48, yF + 0.008, 0.275];
     const fh2: Vec3 = [side * xUBJ, yUBJ, zUBJ];
     const fh3: Vec3 = [side * xTieOuter, yTieOuter, zTieOuter];
     const fh4: Vec3 = [side * xLBJ, yF - 0.055, 0.445];
@@ -457,7 +457,7 @@ export function buildSuspensionMeshScene(
       const ru1: Vec3 = [side * 0.35, yR - 0.175, 0.47];
       const ru2: Vec3 = [side * 0.35, yR + 0.175, 0.47];
       const rh1: Vec3 = [side * 0.635, yR, 0.245];
-      const rsh1: Vec3 = [side * 0.47, yR + 0.005, 0.255];
+      const rsh1: Vec3 = [side * 0.47, yR + 0.005, 0.28];
       const rh2: Vec3 = [side * 0.625, yR, 0.475];
       const rh4: Vec3 = [side * 0.635, yR - 0.085, 0.345];
       const rh5: Vec3 = [side * 0.635, yR + 0.105, 0.345];
