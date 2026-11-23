@@ -243,6 +243,7 @@ export function validateModPhysics(
   const hydroIssues: string[] = [];
   const collisionIssues: string[] = [];
   const flexbodyIssues: string[] = [];
+  const coiloverIssues: string[] = [];
   const groupToNodes = new Map<string, Set<string>>();
 
   // Pass 1: Extract nodes & properties from active core parts (exclude secondary variants so shared node names don't double-count)
@@ -313,6 +314,8 @@ export function validateModPhysics(
       let curLimitSpring = 0;
       let curLimitDamp = 0;
       let curBeamType = '|NORMAL';
+      let curDeform = Infinity;
+      let curPrecompression = 1;
 
       for (const row of rows) {
         if (!Array.isArray(row) && typeof row === 'object' && row !== null) {
@@ -325,6 +328,8 @@ export function validateModPhysics(
           if ('beamDampRebound' in obj) curDampRebound = evalJbeamNumeric(obj.beamDampRebound, maxVars, curDampRebound);
           if ('beamLimitSpring' in obj) curLimitSpring = evalJbeamNumeric(obj.beamLimitSpring, maxVars, 0);
           if ('beamLimitDamp' in obj) curLimitDamp = evalJbeamNumeric(obj.beamLimitDamp, maxVars, 0);
+          if ('beamDeform' in obj) curDeform = evalJbeamNumeric(obj.beamDeform, maxVars, curDeform);
+          if ('beamPrecompression' in obj) curPrecompression = evalJbeamNumeric(obj.beamPrecompression, maxVars, 1);
           if (typeof obj.beamType === 'string') curBeamType = obj.beamType;
         } else if (Array.isArray(row) && typeof row[0] === 'string' && typeof row[1] === 'string' && row[0] !== 'id1:') {
           const id1 = row[0];
@@ -337,11 +342,21 @@ export function validateModPhysics(
           );
           const kEff = curBeamType === '|BOUNDED' ? Math.max(kBase, curLimitSpring) : kBase;
           const cEff = curBeamType === '|BOUNDED' ? Math.max(cBase, curLimitDamp) : cBase;
+          const deformEff = 'beamDeform' in overrides ? evalJbeamNumeric(overrides.beamDeform, maxVars, curDeform) : curDeform;
 
           sumSpring.set(id1, (sumSpring.get(id1) ?? 0) + kEff);
           sumSpring.set(id2, (sumSpring.get(id2) ?? 0) + kEff);
           sumDamp.set(id1, (sumDamp.get(id1) ?? 0) + cEff);
           sumDamp.set(id2, (sumDamp.get(id2) ?? 0) + cEff);
+
+          if (partName.includes('coilover') && kBase > 10000) {
+            if (deformEff < 60000) {
+              coiloverIssues.push(`${partName} spring ${id1}-${id2} beamDeform=${deformEff} (< 60 kN risks spawn yield)`);
+            }
+            if (curBeamType === '|BOUNDED' && curPrecompression > 1.02) {
+              coiloverIssues.push(`${partName} spring ${id1}-${id2} mixes |BOUNDED with beamPrecompression=${curPrecompression.toFixed(2)}`);
+            }
+          }
 
           if (isHydro) {
             const inLim = typeof overrides.inLimit === 'number' ? overrides.inLimit : 1;
@@ -356,6 +371,22 @@ export function validateModPhysics(
 
     processBeamList(part.beams as unknown[] | undefined, false);
     processBeamList(part.hydros as unknown[] | undefined, true);
+
+    // Check rails/slidenodes against self-referential anchor traps
+    if (part.rails && typeof part.rails === 'object' && Array.isArray(part.slidenodes)) {
+      const railsObj = part.rails as Record<string, { links?: string[] }>;
+      for (const sRow of part.slidenodes as unknown[][]) {
+        if (!Array.isArray(sRow) || sRow[0] === 'id:') continue;
+        const slideId = String(sRow[0]);
+        const railName = String(sRow[1]);
+        const rail = railsObj[railName];
+        if (!rail || !Array.isArray(rail.links) || rail.links.length < 2) {
+          powertrainIssues.push(`${partName} slidenode ${slideId} references missing/short rail ${railName}`);
+        } else if (rail.links.includes(slideId)) {
+          powertrainIssues.push(`${partName} slidenode ${slideId} sits on self-referential rail ${railName}`);
+        }
+      }
+    }
 
     // Check wheel_F / wheel_R slot nodeOffset against hub spindle coordinates
     const slotRows = [
@@ -467,19 +498,46 @@ export function validateModPhysics(
       }
     }
 
-    // Check flexbodies
+    // Check flexbodies: require non-degenerate node counts and 3D spatial extent for volumetric parts
     const fb = part.flexbodies as unknown[][] | undefined;
     if (fb) {
       for (const row of fb) {
         if (!Array.isArray(row) || typeof row[0] !== 'string' || row[0] === 'mesh') continue;
         const meshName = row[0];
         const groups = Array.isArray(row[1]) ? (row[1] as string[]) : [];
-        let nodeCount = 0;
+        const boundNodeIds = new Set<string>();
         for (const g of groups) {
-          nodeCount += groupToNodes.get(g)?.size ?? 0;
+          for (const nid of groupToNodes.get(g) ?? []) {
+            boundNodeIds.add(nid);
+          }
         }
-        if (nodeCount < 3) {
-          flexbodyIssues.push(`${meshName} has only ${nodeCount} nodes in [${groups.join(', ')}] (< 3)`);
+        if (boundNodeIds.size < 3) {
+          flexbodyIssues.push(`${meshName} has only ${boundNodeIds.size} nodes in [${groups.join(', ')}] (< 3)`);
+          continue;
+        }
+        const isVolumetric =
+          meshName.includes('knuckle') ||
+          meshName.includes('rotor') ||
+          meshName.includes('brake') ||
+          meshName.includes('coilover') ||
+          meshName.includes('subframe') ||
+          meshName.includes('steering');
+        if (isVolumetric) {
+          let minX = Infinity, maxX = -Infinity;
+          let minY = Infinity, maxY = -Infinity;
+          let minZ = Infinity, maxZ = -Infinity;
+          for (const nid of boundNodeIds) {
+            const n = nodes.get(nid);
+            if (!n) continue;
+            minX = Math.min(minX, n.pos[0]); maxX = Math.max(maxX, n.pos[0]);
+            minY = Math.min(minY, n.pos[1]); maxY = Math.max(maxY, n.pos[1]);
+            minZ = Math.min(minZ, n.pos[2]); maxZ = Math.max(maxZ, n.pos[2]);
+          }
+          if (maxX - minX < 0.05 || maxY - minY < 0.05 || maxZ - minZ < 0.05) {
+            flexbodyIssues.push(
+              `${meshName} flexbody group [${groups.join(', ')}] is near-planar (${(maxX - minX).toFixed(2)}x${(maxY - minY).toFixed(2)}x${(maxZ - minZ).toFixed(2)}m)`
+            );
+          }
         }
       }
     }
@@ -589,12 +647,13 @@ export function validateModPhysics(
     },
     {
       id: 'flexbody-hydros',
-      label: 'Flexbody Groups & Steering Hydros',
-      status: flexbodyIssues.length + hydroIssues.length > 0 ? 'fail' : 'pass',
+      label: 'Flexbody Groups, Coilovers & Hydros',
+      status: flexbodyIssues.length + hydroIssues.length + coiloverIssues.length > 0 ? 'fail' : 'pass',
       detail:
+        coiloverIssues[0] ??
         flexbodyIssues[0] ??
         hydroIssues[0] ??
-        'All flexbody node frames >= 3 nodes and steering hydros bounded',
+        'All flexbodies have 3D node frames, coilovers use |NORMAL spawn springs, and hydros are bounded',
     },
   ];
 

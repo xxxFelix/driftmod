@@ -1,0 +1,116 @@
+[2m04.28.40[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 6 errors:
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:226:8: ERROR: The symbol "kpFracAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:227:8: ERROR: The symbol "xKpAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:228:8: ERROR: The symbol "yKpAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:231:8: ERROR: The symbol "kpFracAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:232:8: ERROR: The symbol "xKpAtTie" has already been declared
+...
+  Plugin: [35mvite:esbuild[39m
+  File: [36mG:/Drift mod - New/src/utils/suspensionMeshGenerator.ts[39m:226:8
+[33m  
+  [33mThe symbol "kpFracAtTie" has already been declared[33m
+  224|  
+  225|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  226|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+     |          ^
+  227|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  228|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  
+  [33mThe symbol "xKpAtTie" has already been declared[33m
+  225|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  226|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  227|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+     |          ^
+  228|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  229|  
+  
+  [33mThe symbol "yKpAtTie" has already been declared[33m
+  226|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  227|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  228|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+     |          ^
+  229|  
+  230|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  
+  [33mThe symbol "kpFracAtTie" has already been declared[33m
+  229|  
+  230|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  231|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+     |          ^
+  232|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  233|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  
+  [33mThe symbol "xKpAtTie" has already been declared[33m
+  230|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  231|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  232|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+     |          ^
+  233|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  234|  
+  
+  [33mThe symbol "yKpAtTie" has already been declared[33m
+  231|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  232|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  233|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+     |          ^
+  234|  
+  235|    const xHubInF = 0.665;
+  [39m
+[2m04.28.40[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 6 errors:
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:226:8: ERROR: The symbol "kpFracAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:227:8: ERROR: The symbol "xKpAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:228:8: ERROR: The symbol "yKpAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:231:8: ERROR: The symbol "kpFracAtTie" has already been declared
+G:/Drift mod - New/src/utils/suspensionMeshGenerator.ts:232:8: ERROR: The symbol "xKpAtTie" has already been declared
+...
+  Plugin: [35mvite:esbuild[39m
+  File: [36mG:/Drift mod - New/src/utils/suspensionMeshGenerator.ts[39m:226:8
+[33m  
+  [33mThe symbol "kpFracAtTie" has already been declared[33m
+  224|  
+  225|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  226|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+     |          ^
+  227|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  228|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  
+  [33mThe symbol "xKpAtTie" has already been declared[33m
+  225|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  226|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  227|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+     |          ^
+  228|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  229|  
+  
+  [33mThe symbol "yKpAtTie" has already been declared[33m
+  226|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  227|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  228|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+     |          ^
+  229|  
+  230|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  
+  [33mThe symbol "kpFracAtTie" has already been declared[33m
+  229|  
+  230|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  231|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+     |          ^
+  232|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  233|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  
+  [33mThe symbol "xKpAtTie" has already been declared[33m
+  230|    // Kingpin axis position at tie-rod height for accurate steering arm radius
+  231|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  232|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+     |          ^
+  233|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+  234|  
+  
+  [33mThe symbol "yKpAtTie" has already been declared[33m
+  231|    const kpFracAtTie = (zTieOuter - zLBJ) / dzKingpin;
+  232|    const xKpAtTie = xLBJ + kpFracAtTie * (xUBJ - xLBJ);
+  233|    const yKpAtTie = yLBJ + kpFracAtTie * (yUBJ - yLBJ);
+     |          ^
+  234|  
+  235|    const xHubInF = 0.665;
+  [39m

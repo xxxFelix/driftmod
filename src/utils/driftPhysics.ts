@@ -120,7 +120,7 @@ function computeRearTireFactors(tune: DriftTuneParams) {
       : clamp(1.04 + psiDelta * 0.014, 0.94, 1.04);
 
   const rearCamberFactor =
-    1 - Math.max(0, Math.abs(tune.rearCamberDeg) - 0.8) * 0.048;
+    1 - Math.max(0, Math.abs(tune.rearCamberDeg) - 0.8) * 0.072;
   const rearToeStability =
     tune.rearToeDeg >= 0
       ? 1 + clamp(tune.rearToeDeg, 0, 0.7) * 0.16
@@ -309,14 +309,15 @@ export function analyzeDriftSetup(
         'Reduces straight-ahead braking bite and turn-in stability before lock builds.',
     });
   }
-  if (tune.rearCamberDeg < -2.2) {
-    penalty += 12;
+  if (tune.rearCamberDeg < -2.0) {
+    const severeRearCamber = tune.rearCamberDeg < -3.6;
+    penalty += severeRearCamber ? 26 : 12;
     issues.push({
-      severity: 'warning',
+      severity: severeRearCamber ? 'critical' : 'warning',
       code: 'EXCESS_REAR_CAMBER',
       label: `Excess Rear Negative Camber (${tune.rearCamberDeg.toFixed(1)}°)`,
       detail:
-        'Shrinks the rear contact patch under throttle squat, hurting chase speed.',
+        'Shrinks the rear contact patch under throttle squat, hurting chase speed and mid-drift bite.',
     });
   }
   if (tune.rearToeDeg < -0.02) {
@@ -498,12 +499,14 @@ export function createInitialCarState(track: TrackDefinition): CarSimState {
   const start = splineSamples[0];
   const heading = Math.atan2(start.ty, start.tx);
 
+  const startSpeedPx = track.roadWidth < 100 ? 105 : 135;
+
   return {
     x: start.x,
     y: start.y,
     heading,
-    vx: Math.cos(heading) * 140,
-    vy: Math.sin(heading) * 140,
+    vx: Math.cos(heading) * startSpeedPx,
+    vy: Math.sin(heading) * startSpeedPx,
     angularVel: 0,
     steerAngle: 0,
     aiSteerCmd: 0,
@@ -606,12 +609,12 @@ function computeAutopilotInput(
   );
   const travelErr = normalizeAngle(desiredTravelAngle - velAngle);
 
-  // Target competitive drift angle (38-49 deg in corners, 18-24 deg transitions)
-  // Low steering lock (<52 deg) and high Ackermann hit physical bump stops trying to hold real drift angles!
+  // Target competitive drift angle (36-46 deg in corners, 18-24 deg transitions)
+  // Low steering lock (<54 deg) and high Ackermann hit physical bump stops trying to hold real drift angles!
   const targetMaxCornerDeg =
     upcomingPeakCurv > 0.011
-      ? clamp(47 - upcomingPeakCurv * 200, 38, 48)
-      : 49;
+      ? clamp(44 - upcomingPeakCurv * 180, 35, 44)
+      : 46;
 
   const isCorner = curvMag > 0.0011 || upcomingPeakCurv > 0.0024;
   const rawSlipDeg = isCorner
@@ -702,30 +705,31 @@ function computeAutopilotInput(
     const targetSlipDeg = (Math.abs(targetSlipRad) * 180) / Math.PI;
     const initSlipGate = estRearGrip > 1.02 ? 22 : 16;
 
-    if (speedKmh > targetSpeedKmh + 5 && speedKmh > 40) {
-      const canLeftFootBrake = estRearGrip > 0.92 && absSlipDeg >= 14;
-      throttle = canLeftFootBrake ? 0.58 : 0.08;
+    if (speedKmh > targetSpeedKmh + 2.5 && speedKmh > 34) {
+      const canLeftFootBrake =
+        estRearGrip > 0.92 && absSlipDeg >= 16 && tune.brakeBiasPct >= 60;
+      throttle = canLeftFootBrake ? 0.56 : 0.06;
       brake =
-        absSlipDeg < 28 || speedKmh > targetSpeedKmh + 10
-          ? speedKmh > targetSpeedKmh + 12
-            ? 0.68
-            : 0.44
-          : 0.24;
+        absSlipDeg < 28 || speedKmh > targetSpeedKmh + 8
+          ? speedKmh > targetSpeedKmh + 10
+            ? 0.72
+            : 0.48
+          : 0.3;
     } else if (edgeRatio > 0.76 || nearWall) {
       throttle = speedKmh > targetSpeedKmh - 2 ? 0.24 : 0.56;
     } else if (
       (curvMag > 0.0011 || upcomingPeakCurv > 0.0026) &&
-      edgeRatio < 0.66 &&
+      edgeRatio < 0.68 &&
       speedKmh <= targetSpeedKmh + 6 &&
       absSlipDeg < targetSlipDeg - 2 &&
-      Math.abs(travelErr) < 0.74
+      Math.abs(travelErr) < 0.78
     ) {
       if (
-        (curvMag > 0.0022 ||
+        (curvMag > 0.002 ||
           (estRearGrip > 1.0 && upcomingPeakCurv > 0.0036)) &&
         absSlipDeg < initSlipGate &&
         Math.abs(car.angularVel) < 0.65 &&
-        speedKmh > 38
+        speedKmh > 26
       ) {
         handbrake = true;
         throttle = 0.56;
@@ -733,7 +737,7 @@ function computeAutopilotInput(
         clutchKick = true;
         throttle = 0.96;
       }
-    } else if (speedKmh < targetSpeedKmh - 4) {
+    } else if (speedKmh < targetSpeedKmh - 3) {
       throttle = 0.95;
     } else {
       throttle = isCorner ? 0.9 : 0.76;
@@ -1092,7 +1096,7 @@ export function stepDriftPhysics(
   // Rear Brake Bias Lockup Penalty
   const rearLockupIntensity =
     input.brake > 0.08
-      ? clamp((60 - tune.brakeBiasPct) * input.brake * 0.075, 0, 0.75)
+      ? clamp((60 - tune.brakeBiasPct) * input.brake * 0.115, 0, 0.85)
       : 0;
   const rearBrakeBiasPenalty = 1 - rearLockupIntensity;
 
@@ -1197,9 +1201,18 @@ export function stepDriftPhysics(
     Math.max(0, -tune.rearToeDeg) * latVelNorm * 9.5 * slipDir;
   const rearLockupYaw =
     rearLockupIntensity *
-    clamp(speedKmh / 34, 0, 1.8) *
-    19.0 *
+    clamp(speedKmh / 28, 0, 2.0) *
+    28.0 *
     (Math.abs(bodySlipRad) > 0.04 ? slipDir : Math.sign(car.steerAngle || 1));
+
+  // Excess negative rear camber (-3.0+ deg) rides the inner shoulder and snaps on load
+  const camberSnapYaw =
+    tune.rearCamberDeg < -2.8
+      ? Math.abs(tune.rearCamberDeg + 2.8) *
+        0.95 *
+        latVelNorm *
+        Math.sign(car.angularVel || slipDir)
+      : 0;
 
   // Lock-stop spin torque: once drift angle pushes into the front steering bump stop
   // (accounting for ~3 deg front slip angle reserve), countersteer saturates!
@@ -1235,6 +1248,7 @@ export function stepDriftPhysics(
     arbSnapYaw +
     rearToeOutYaw +
     rearLockupYaw +
+    camberSnapYaw +
     lockStopYawTorque +
     blowoutSnapYaw;
 
@@ -1242,6 +1256,12 @@ export function stepDriftPhysics(
   const worldAy = longAccel * sinH + totalLatAccel * cosH;
   car.vx += worldAx * safeDt;
   car.vy += worldAy * safeDt;
+
+  if (input.throttle < 0.22 && absBodySlipDeg > 24 && !input.handbrake) {
+    const scrub = clamp((absBodySlipDeg - 24) / 45, 0, 1) * 0.72 * safeDt;
+    car.vx *= 1 - scrub;
+    car.vy *= 1 - scrub;
+  }
 
   if (speedPx < 20 && input.throttle === 0) {
     car.vx *= 0.88;
@@ -1354,11 +1374,12 @@ export function stepDriftPhysics(
 
   // Drift scoring engine (tarmac bounds, valid slip window, speed, lateral G grip & smoothness)
   const maxValidSlip = Math.min(70, tune.steeringLockDeg + 3);
+  const minDriftSpeedKmh = track.roadWidth < 100 ? 25 : 30;
   const isDrifting =
     onTarmac &&
     !spunOut &&
     !hitWall &&
-    speedKmh >= 30 &&
+    speedKmh >= minDriftSpeedKmh &&
     slipAngleDeg >= 14 &&
     slipAngleDeg <= maxValidSlip;
 

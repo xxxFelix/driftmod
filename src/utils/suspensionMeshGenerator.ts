@@ -201,24 +201,28 @@ export function buildSuspensionMeshScene(
   const camberRRad = degToRad(tune.rearCamberDeg);
   const toeRRad = degToRad(tune.rearToeDeg);
 
-  // Pro-Drift Geometry Defaults (replaces hardcoded BX values)
-  // Lower Ball Joint (LBJ) and Upper Ball Joint (UBJ) positions
-  const zLBJ = 0.23;
-  const zUBJ = 0.56;
-  const dzKingpin = zUBJ - zLBJ; // 0.330 m
-  const xLBJ = 0.82;
+  // Pro-Drift Geometry Defaults (1:1 locked to doubleWishboneJbeam.ts)
+  const zLBJ = 0.215;
+  const zUBJ = 0.675;
+  const dzKingpin = zUBJ - zLBJ; // 0.460 m
+  const xLBJ = 0.760;
   const xUBJ = xLBJ - dzKingpin * Math.tan(kpiRad);
   const yLBJ = yF - 0.15 * Math.tan(casterRad);
   const yUBJ = yLBJ + dzKingpin * Math.tan(casterRad);
 
   // Shorter steering arm (116mm behind axle) + Ackermann pickup shift, raised to z=0.315m clear of LCA & subframe
-  const ackermannShift = (tune.ackermannPct / 100) * 0.035; // Increased range for more realistic Ackermann
+  const ackermannShift = (tune.ackermannPct / 100) * 0.035;
   const xTieOuter = xLBJ - ackermannShift;
   const yTieOuter = yF + 0.116;
   const zTieOuter = 0.315;
 
+<<<<<<< HEAD
   const xHubInF = 0.665;
   const xHubOutF = 0.875;
+=======
+  const xHubInF = 0.705;
+  const xHubOutF = 0.915;
+>>>>>>> cf69707f6a96ca0ec68fe8924bcf0ad602a6133f
   const spindleLenF = xHubOutF - xHubInF;
   const zHubCenterF = 0.35;
   const dzCamberF = spindleLenF * 0.5 * Math.sin(-camberFRad);
@@ -227,7 +231,7 @@ export function buildSuspensionMeshScene(
   const xHubInR = 0.54;
   const xHubOutR = 0.75;
   const spindleLenR = xHubOutR - xHubInR;
-  const zHubCenterR = 0.32;
+  const zHubCenterR = 0.325;
   const dzCamberR = spindleLenR * 0.5 * Math.sin(-camberRRad);
   const dyToeR = spindleLenR * 0.5 * Math.sin(toeRRad);
 
@@ -267,17 +271,19 @@ export function buildSuspensionMeshScene(
     const fx1l: Vec3 = [0.31, yF - 0.145, 0.255];
     const fx2r: Vec3 = [-0.31, yF + 0.175, 0.255];
     const fx2l: Vec3 = [0.31, yF + 0.175, 0.255];
-    const fu1r: Vec3 = [-0.345, yF - 0.145, 0.515];
-    const fu1l: Vec3 = [0.345, yF - 0.145, 0.515];
-    const fu2r: Vec3 = [-0.345, yF + 0.145, 0.515];
-    const fu2l: Vec3 = [0.345, yF + 0.145, 0.515];
-    const fx3r: Vec3 = [-xRackMount, yRack, zRack];
-    const fx3l: Vec3 = [xRackMount, yRack, zRack];
+    const fu1r: Vec3 = [-0.345, yF - 0.145, 0.64];
+    const fu1l: Vec3 = [0.345, yF - 0.145, 0.64];
+    const fu2r: Vec3 = [-0.345, yF + 0.145, 0.64];
+    const fu2l: Vec3 = [0.345, yF + 0.145, 0.64];
+    const frk1r: Vec3 = [-xRackMount, yRack, zRack];
+    const frk1l: Vec3 = [xRackMount, yRack, zRack];
+    const fx3r: Vec3 = [-0.38, yF + 0.15, 0.4];
+    const fx3l: Vec3 = [0.38, yF + 0.15, 0.4];
     const fx4r: Vec3 = [-0.4, yF - 0.05, 0.4];
     const fx4l: Vec3 = [0.4, yF - 0.05, 0.4];
-    const fc1r: Vec3 = [-0.34, yF + 0.008, 0.745];
-    const fc1l: Vec3 = [0.34, yF + 0.008, 0.745];
-    const fc0: Vec3 = [0, yF + 0.18, 0.74];
+    const fc1r: Vec3 = [-0.36, yF + 0.008, 0.77];
+    const fc1l: Vec3 = [0.36, yF + 0.008, 0.77];
+    const fc0: Vec3 = [0, yF + 0.18, 0.76];
 
     const rMain = 0.018 * Math.min(1.25, Math.max(0.88, tune.chassisRigidity * 0.85));
     // Lower cradle & crossmember
@@ -299,6 +305,10 @@ export function buildSuspensionMeshScene(
     mb.addTube(fx4l, fx1l, rMain * 0.8, 6);
     mb.addTube(fx4r, fu1r, rMain * 0.8, 6);
     mb.addTube(fx4l, fu1l, rMain * 0.8, 6);
+    mb.addTube(fx3r, fx2r, rMain * 0.78, 6);
+    mb.addTube(fx3r, fu2r, rMain * 0.78, 6);
+    mb.addTube(fx3l, fx2l, rMain * 0.78, 6);
+    mb.addTube(fx3l, fu2l, rMain * 0.78, 6);
     // Triangulated upper strut tower bridge & firewall V-brace (prevents camber flex)
     mb.addTube(fc1r, fu1r, rMain * 0.9, 6);
     mb.addTube(fc1r, fu2r, rMain * 0.9, 6);
@@ -312,10 +322,10 @@ export function buildSuspensionMeshScene(
     mb.addTube(fc1r, fx4l, rMain * 0.72, 6);
     mb.addTube(fc1l, fx4r, rMain * 0.72, 6);
     // Forward-offset raised rack mounting cradle (clears subframe rail & LCA)
-    mb.addTube(fx3r, fx1r, rMain * 0.78, 6);
-    mb.addTube(fx3r, fx4r, rMain * 0.75, 6);
-    mb.addTube(fx3l, fx1l, rMain * 0.78, 6);
-    mb.addTube(fx3l, fx4l, rMain * 0.75, 6);
+    mb.addTube(frk1r, fx1r, rMain * 0.78, 6);
+    mb.addTube(frk1r, fx4r, rMain * 0.75, 6);
+    mb.addTube(frk1l, fx1l, rMain * 0.78, 6);
+    mb.addTube(frk1l, fx4l, rMain * 0.75, 6);
     pushPart('driftmod_subframe_F', 'Front Chromoly Subframe', 'front', 'subframe', 'dm_gunmetal_steel', mb);
   }
 
@@ -324,24 +334,24 @@ export function buildSuspensionMeshScene(
     const tag = side < 0 ? 'FR' : 'FL';
     const fx1: Vec3 = [side * 0.31, yF - 0.145, 0.255];
     const fx2: Vec3 = [side * 0.31, yF + 0.175, 0.255];
-    const fu1: Vec3 = [side * 0.345, yF - 0.145, 0.515];
-    const fu2: Vec3 = [side * 0.345, yF + 0.145, 0.515];
+    const fu1: Vec3 = [side * 0.345, yF - 0.145, 0.64];
+    const fu2: Vec3 = [side * 0.345, yF + 0.145, 0.64];
     const fh1: Vec3 = [side * xLBJ, yLBJ, zLBJ];
     const fsh1: Vec3 = [side * 0.455, yF + 0.008, 0.264];
     const fh2: Vec3 = [side * xUBJ, yUBJ, zUBJ];
     const fh3: Vec3 = [side * xTieOuter, yTieOuter, zTieOuter];
-    const fh4: Vec3 = [side * xLBJ, yF - 0.055, 0.425];
-    const fh5: Vec3 = [side * xLBJ, yF + 0.055, 0.425];
-    const fc1: Vec3 = [side * 0.34, yF + 0.008, 0.745];
+    const fh4: Vec3 = [side * xLBJ, yF - 0.055, 0.445];
+    const fh5: Vec3 = [side * xLBJ, yF + 0.055, 0.445];
+    const fc1: Vec3 = [side * 0.36, yF + 0.008, 0.77];
     const fwIn: Vec3 = [side * xHubInF, yF - dyToeF, zHubCenterF - dzCamberF];
     const fwOut: Vec3 = [side * xHubOutF, yF + dyToeF, zHubCenterF + dzCamberF];
     const hubMid = scale(add(fwIn, fwOut), 0.5);
 
     // High-Clearance Pinched-Pocket Lower Wishbone A-Arm + inboard shock clevis cross-tube
     const lcaMb = new MeshBuilder();
-    const lcaElbow1: Vec3 = [side * (0.31 + (xLBJ - 0.31) * 0.22), yF - 0.014, 0.255];
-    const lcaElbow2: Vec3 = [side * (0.31 + (xLBJ - 0.31) * 0.68), yF - 0.014, 0.255];
-    const lcaRearElbow: Vec3 = [side * 0.385, yF - 0.006, 0.255];
+    const lcaElbow1: Vec3 = [side * 0.40, yF - 0.010, 0.255];
+    const lcaElbow2: Vec3 = [side * 0.58, yF - 0.010, 0.245];
+    const lcaRearElbow: Vec3 = [side * 0.38, yF + 0.005, 0.255];
     lcaMb.addTube(fx1, lcaElbow1, 0.016, 8);
     lcaMb.addTube(lcaElbow1, lcaElbow2, 0.016, 8);
     lcaMb.addTube(lcaElbow2, fh1, 0.016, 8);
@@ -351,11 +361,11 @@ export function buildSuspensionMeshScene(
     lcaMb.addTube(lcaRearElbow, fsh1, 0.013, 6);
     pushPart(`driftmod_lca_${tag}`, `Front Lower Wishbone (${tag})`, 'front', 'arms', 'dm_chromoly_orange', lcaMb);
 
-    // Open-Window High-Angle Upper Wishbone A-Arm (~78-81% of LCA length; clears coilover & +/-70 deg tire barrel)
+    // Open-Window High-Angle Upper Wishbone A-Arm (~77-82% of LCA length; clears coilover & +/-70 deg tire barrel)
     const ucaMb = new MeshBuilder();
-    const ucaElbowF1: Vec3 = [side * 0.42, yF - 0.045, 0.54];
-    const ucaElbowF2: Vec3 = [side * 0.505, yF - 0.062, 0.47];
-    const ucaElbowR: Vec3 = [side * 0.425, yF + 0.058, 0.525];
+    const ucaElbowF1: Vec3 = [side * 0.405, yF - 0.075, 0.670];
+    const ucaElbowF2: Vec3 = [side * 0.495, yF - 0.045, 0.685];
+    const ucaElbowR: Vec3 = [side * 0.405, yF + 0.075, 0.670];
     ucaMb.addTube(fu1, ucaElbowF1, 0.014, 8);
     ucaMb.addTube(ucaElbowF1, ucaElbowF2, 0.014, 8);
     ucaMb.addTube(ucaElbowF2, fh2, 0.014, 8);
@@ -447,7 +457,7 @@ export function buildSuspensionMeshScene(
       const ru1: Vec3 = [side * 0.35, yR - 0.175, 0.47];
       const ru2: Vec3 = [side * 0.35, yR + 0.175, 0.47];
       const rh1: Vec3 = [side * 0.635, yR, 0.245];
-      const rsh1: Vec3 = [side * 0.485, yR + 0.005, 0.255];
+      const rsh1: Vec3 = [side * 0.47, yR + 0.005, 0.255];
       const rh2: Vec3 = [side * 0.625, yR, 0.475];
       const rh4: Vec3 = [side * 0.635, yR - 0.085, 0.345];
       const rh5: Vec3 = [side * 0.635, yR + 0.105, 0.345];
