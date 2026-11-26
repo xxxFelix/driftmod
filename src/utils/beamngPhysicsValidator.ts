@@ -244,6 +244,8 @@ export function validateModPhysics(
   const collisionIssues: string[] = [];
   const flexbodyIssues: string[] = [];
   const coiloverIssues: string[] = [];
+  const duplicateBeamIssues: string[] = [];
+  const seenNormalBeamPairs = new Map<string, string>();
   const groupToNodes = new Map<string, Set<string>>();
 
   // Pass 1: Extract nodes & properties from active core parts (exclude secondary variants so shared node names don't double-count)
@@ -345,6 +347,17 @@ export function validateModPhysics(
           const kEff = curBeamType === '|BOUNDED' ? Math.max(kBase, curLimitSpring) : kBase;
           const cEff = curBeamType === '|BOUNDED' ? Math.max(cBase, curLimitDamp) : cBase;
           const deformEff = 'beamDeform' in overrides ? evalJbeamNumeric(overrides.beamDeform, maxVars, curDeform) : curDeform;
+          const typeEff = typeof overrides.beamType === 'string' ? overrides.beamType : curBeamType;
+
+          if (!isHydro && typeEff === '|NORMAL' && kBase > 0) {
+            const pairKey = id1 < id2 ? `${id1}|${id2}` : `${id2}|${id1}`;
+            const prevPart = seenNormalBeamPairs.get(pairKey);
+            if (prevPart) {
+              duplicateBeamIssues.push(`Duplicate |NORMAL beam ${id1}-${id2} in ${partName} (already defined in ${prevPart})`);
+            } else {
+              seenNormalBeamPairs.set(pairKey, partName);
+            }
+          }
 
           sumSpring.set(id1, (sumSpring.get(id1) ?? 0) + kEff);
           sumSpring.set(id2, (sumSpring.get(id2) ?? 0) + kEff);
@@ -355,7 +368,7 @@ export function validateModPhysics(
             if (deformEff < 60000) {
               coiloverIssues.push(`${partName} spring ${id1}-${id2} beamDeform=${deformEff} (< 60 kN risks spawn yield)`);
             }
-            if (curBeamType === '|BOUNDED' && curPrecompression > 1.02) {
+            if (typeEff === '|BOUNDED' && curPrecompression > 1.02) {
               coiloverIssues.push(`${partName} spring ${id1}-${id2} mixes |BOUNDED with beamPrecompression=${curPrecompression.toFixed(2)}`);
             }
           }
@@ -710,12 +723,16 @@ export function validateModPhysics(
     {
       id: 'flexbody-hydros',
       label: 'Flexbody Groups, Coilovers & Hydros',
-      status: flexbodyIssues.length + hydroIssues.length + coiloverIssues.length > 0 ? 'fail' : 'pass',
+      status:
+        flexbodyIssues.length + hydroIssues.length + coiloverIssues.length + duplicateBeamIssues.length > 0
+          ? 'fail'
+          : 'pass',
       detail:
+        duplicateBeamIssues[0] ??
         coiloverIssues[0] ??
         flexbodyIssues[0] ??
         hydroIssues[0] ??
-        'All flexbodies have 3D node frames, coilovers use |NORMAL spawn springs, and hydros are bounded',
+        'All flexbodies have 3D node frames, zero duplicate |NORMAL beams, and coilovers/hydros are bounded',
     },
   ];
 

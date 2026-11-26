@@ -924,3 +924,126 @@ test('wheel_F_5 and wheel_R_5 load strictly before wheeldata_F/R in depth-first 
   }
 });
 
+test('drift handling, live alignment precompression, torsionbar ARBs, Lua absolute PSI, and ready-to-spawn .pc config are valid', () => {
+  const bx = CHASSIS_PRESETS[0];
+  const modFiles = generateBeamNGModFiles(bx, bx.defaultTune);
+  const parsed: Record<string, Record<string, unknown>> = {};
+  for (const f of modFiles) {
+    if (f.filename.endsWith('.jbeam')) Object.assign(parsed, JSON.parse(f.content));
+  }
+
+  // 1. Static toe sign: front negative toe (-0.20 deg) = toe-OUT (outer fw1rr shifted aft +Y > fw1r),
+  //    rear positive toe (+0.30 deg) = toe-IN (outer rw1rr shifted forward -Y < rw1r).
+  const hubFNodes = extractNodesMap(parsed['bx_driftmod_hub_F']);
+  const hubRNodes = extractNodesMap(parsed['bx_driftmod_hub_R']);
+  assert.ok(hubFNodes.get('fw1rr')![1] > hubFNodes.get('fw1r')![1], 'negative frontToeDeg must spawn as toe-OUT');
+  assert.ok(hubRNodes.get('rw1rr')![1] < hubRNodes.get('rw1r')![1], 'positive rearToeDeg must spawn as toe-IN');
+
+  // 2. Torsionbar ARBs on front & rear swaybars
+  const arbF = parsed['bx_driftmod_swaybar_F'];
+  const arbR = parsed['bx_driftmod_swaybar_R'];
+  assert.ok(
+    ((arbF.torsionbars as unknown[][]) || []).some(
+      (r) => Array.isArray(r) && r[0] === 'arbf1r' && r[1] === 'fx2r' && r[2] === 'fx2l' && r[3] === 'arbf1l'
+    ),
+    'front swaybar must define real torsionbar across fx2r-fx2l'
+  );
+  assert.ok(
+    ((arbR.torsionbars as unknown[][]) || []).some(
+      (r) => Array.isArray(r) && r[0] === 'arbr1r' && r[1] === 'rx2r' && r[2] === 'rx2l' && r[3] === 'arbr1l'
+    ),
+    'rear swaybar must define real torsionbar across rx2r-rx2l'
+  );
+
+  // 3. Live beamPrecompression expressions across camber, caster, front/rear toe & steering center
+  const frontSusp = parsed['bx_driftmod_dw_suspension_F'];
+  const frontBeams = (frontSusp.beams as unknown[][]) || [];
+  const hubFBeams = (parsed['bx_driftmod_hub_F'].beams as unknown[][]) || [];
+  const rackF = parsed['bx_driftmod_rack_F'];
+  const rackHydros = (rackF.hydros as unknown[][]) || [];
+  const rearSusp = parsed['bx_driftmod_suspension_R'];
+  const rearBeams = (rearSusp.beams as unknown[][]) || [];
+
+  const getPrecomp = (rows: unknown[][], a: string, b: string) => {
+    const row = rows.find((r) => Array.isArray(r) && r[0] === a && r[1] === b);
+    return (row?.[2] as { beamPrecompression?: unknown; beamPrecompressionTime?: number } | undefined);
+  };
+
+  for (const [a, b] of [
+    ['fw1rr', 'fh1r'],
+    ['fw1rr', 'fh2r'],
+    ['fw1rr', 'fh3r'],
+    ['fw1rr', 'fh5r'],
+  ]) {
+    const opts = getPrecomp(hubFBeams, a, b);
+    assert.ok(
+      typeof opts?.beamPrecompression === 'string' && opts.beamPrecompression.includes('$dm_camber_F'),
+      `${a}-${b} must drive live $dm_camber_F precompression`
+    );
+    assert.equal(opts?.beamPrecompressionTime, 0.5);
+  }
+  assert.ok(
+    String(getPrecomp(frontBeams, 'fw1rr', 'fh4r')?.beamPrecompression).includes('$dm_camber_F'),
+    'fw1rr-fh4r must drive live $dm_camber_F precompression'
+  );
+  assert.ok(
+    String(getPrecomp(frontBeams, 'fx1r', 'fh1r')?.beamPrecompression).includes('$dm_caster_F') &&
+      String(getPrecomp(frontBeams, 'fu1r', 'fh2r')?.beamPrecompression).includes('$dm_caster_F'),
+    'front LCA & UCA beams must drive live $dm_caster_F precompression'
+  );
+  assert.ok(
+    String(getPrecomp(rackHydros, 'frk1r', 'fh3r')?.beamPrecompression).includes('$dm_toe_F') &&
+      String(getPrecomp(rackHydros, 'frk1r', 'fh3r')?.beamPrecompression).includes('$steer_center_F'),
+    'rack_F tie-rod hydros must drive $dm_toe_F and $steer_center_F'
+  );
+  assert.ok(
+    String(getPrecomp(rearBeams, 'ru1r', 'rh2r')?.beamPrecompression).includes('$dm_camber_R') &&
+      String(getPrecomp(rearBeams, 'rx2r', 'rh5r')?.beamPrecompression).includes('$dm_toe_R'),
+    'rear upper & toe links must drive $dm_camber_R and $dm_toe_R'
+  );
+
+  // 4. Physical |SUPPORT lock stops on dw_suspension_F and zero rigid beam on rx1*-rh4*
+  assert.ok(
+    frontBeams.some((r) => Array.isArray(r) && r[0] === 'fh3r' && r[1] === 'fx1r') &&
+      frontBeams.some((r) => Array.isArray(r) && r[0] === 'fh5r' && r[1] === 'fx2r'),
+    'dw_suspension_F must include physical |SUPPORT lock stops'
+  );
+  const rx1Rh4Idx = rearBeams.findIndex((r) => Array.isArray(r) && r[0] === 'rx1r' && r[1] === 'rh4r');
+  assert.ok(rx1Rh4Idx > 0);
+  const rx1Rh4Header = rearBeams[rx1Rh4Idx - 1] as unknown as { beamSpring?: number };
+  assert.equal(rx1Rh4Header.beamSpring, 0, 'rx1*-rh4* must be damping-only so rear toe stays unconstrained');
+
+  // 5. Lua controller fixes: +101325 atm tire pressure, calibrated 7.4/4.8 MR, no symmetric Ackermann lock loss, guarded steering damp
+  const lua = modFiles.find((f) => f.filename === 'driftmod.lua')!.content;
+  assert.ok(lua.includes('+ 101325'), 'driftmod.lua must add 101325 Pa atmospheric offset in setGroupPressure');
+  assert.ok(lua.includes('local mrF = 7.4') && lua.includes('local mrR = 4.8'), 'driftmod.lua must match 7.4 / 4.8 coilover motion ratios');
+  assert.ok(!lua.includes('ackermannPct * 0.002'), 'driftmod.lua must not shrink both front wheel steering lock via ackermannPct');
+  assert.ok(lua.includes('base.damp <= 250'), 'driftmod.lua must guard steering damper scaling away from 3200 full-lock dampers');
+
+  // 6. Bundled ready-to-spawn .pc configuration and info_*.json
+  const pcFile = modFiles.find((f) => f.relativePath === 'vehicles/bx/driftmod_pro_drift.pc');
+  const infoFile = modFiles.find((f) => f.relativePath === 'vehicles/bx/info_driftmod_pro_drift.json');
+  assert.ok(pcFile && infoFile, 'must bundle vehicles/bx/driftmod_pro_drift.pc and info_driftmod_pro_drift.json');
+  const pcDoc = JSON.parse(pcFile!.content) as {
+    format: number;
+    model: string;
+    parts: Record<string, string>;
+    vars: Record<string, number>;
+  };
+  assert.equal(pcDoc.format, 2);
+  assert.equal(pcDoc.model, 'bx');
+  assert.equal(pcDoc.parts.bx_body, 'bx_body_coupe');
+  assert.equal(pcDoc.parts.bx_suspension_F, 'bx_driftmod_dw_suspension_F');
+  assert.equal(pcDoc.parts.bx_suspension_R, 'bx_driftmod_suspension_R');
+  assert.equal(pcDoc.parts.bx_differential_R, 'bx_driftmod_diff_R');
+  assert.ok(typeof pcDoc.vars.$dm_caster_F === 'number');
+  assert.ok(typeof pcDoc.vars.$dm_front_psi === 'number');
+  assert.ok(typeof pcDoc.vars.$dm_rear_psi === 'number');
+  assert.equal(pcDoc.vars.$steer_center_F, 0);
+
+  const infoDoc = JSON.parse(infoFile!.content) as Record<string, unknown>;
+  assert.equal(infoDoc.Configuration, 'DriftMod Pro Drift');
+  assert.equal(infoDoc['Config Type'], 'Custom');
+});
+
+

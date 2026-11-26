@@ -171,6 +171,8 @@ local function applyDriftModTune()
   local arbBiasR = clamp(tonumber(cfg.arbBiasR) or ${tune.rearArbBiasPct}, 20, 80)
   local frontArbSpring = clamp(tonumber(cfg.frontArbStiffness) or ${tune.frontArbStiffness}, 10000, 180000)
   local rearArbSpring = clamp(tonumber(cfg.rearArbStiffness) or ${tune.rearArbStiffness}, 10000, 180000)
+  local antiSquatPct = clamp(tonumber(cfg.antiSquatPct) or ${tune.antiSquatPct}, 20, 90)
+  local squatDampScale = clamp(1.0 + (antiSquatPct - 55) * 0.004, 0.85, 1.15)
   local ffbDampPct = clamp(tonumber(cfg.ffbDampingPct) or ${tune.ffbDampingPct}, 0, 60)
   local rackDampScale = clamp(0.68 + (ffbDampPct / 60) * 0.82, 0.65, 1.50)
 
@@ -183,22 +185,22 @@ local function applyDriftModTune()
         local isBounded = base.beamType == BEAM_BOUNDED or base.beamType == "|BOUNDED"
 
         if isCoilover and not isBounded and base.spring >= 8000 and base.spring <= 1800000 then
-          local mrF = 11.5
-          local mrR = 5.2
+          local mrF = 7.4
+          local mrR = 4.8
           local newSpring = base.isFront and math.floor(springF * mrF) or math.floor(springR * mrR)
           if math.abs(newSpring - base.spring) > 50 then
             pcall(obj.setBeamSpringDamp, obj, cid, newSpring, 0, -1, -1)
           end
         elseif isCoilover and isBounded and base.spring == 0 and base.damp >= 50 then
           if base.isFront then
-            local cBumpF = math.min(18400, math.floor(dampBumpF * 11.5))
-            local cRebF = math.min(25300, math.floor(dampReboundF * 11.5))
+            local cBumpF = math.min(11840, math.floor(dampBumpF * 7.4))
+            local cRebF = math.min(16280, math.floor(dampReboundF * 7.4))
             if math.abs(cBumpF - base.damp) > 25 or math.abs(cRebF - base.dampRebound) > 25 then
               pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpF, 0, cRebF)
             end
           else
-            local cBumpR = math.min(8350, math.floor(dampBumpR * 5.2))
-            local cRebR = math.min(11450, math.floor(dampReboundR * 5.2))
+            local cBumpR = math.min(8200, math.floor(dampBumpR * 4.8 * squatDampScale))
+            local cRebR = math.min(11200, math.floor(dampReboundR * 4.8 * squatDampScale))
             if math.abs(cBumpR - base.damp) > 25 or math.abs(cRebR - base.dampRebound) > 25 then
               pcall(obj.setBeamSpringDamp, obj, cid, 0, cBumpR, 0, cRebR)
             end
@@ -206,7 +208,7 @@ local function applyDriftModTune()
         elseif strContains(origin, "swaybar") and base.spring >= 2000 and base.spring <= 350000 then
           local newSpring = base.isFront and frontArbSpring or rearArbSpring
           pcall(obj.setBeamSpringDamp, obj, cid, newSpring, base.damp, newSpring, base.dampRebound)
-        elseif strContains(origin, "steering") and base.damp >= 20 and base.damp <= 6000 and base.spring <= 250000 then
+        elseif strContains(origin, "steering") and base.damp >= 20 and base.damp <= 250 and base.spring <= 250000 then
           local newDamp = math.floor(base.damp * rackDampScale)
           pcall(obj.setBeamSpringDamp, obj, cid, base.spring, newDamp, base.spring, newDamp)
         end
@@ -218,8 +220,7 @@ local function applyDriftModTune()
   local lockDeg = tonumber(cfg.steerLockDeg) or baseLockDeg
   local steerSpeed = clamp(tonumber(cfg.steerSpeed) or ${tune.steeringSpeed.toFixed(2)}, 0.6, 1.8)
   local wheelDeg = clamp(tonumber(cfg.steerWheelDeg) or ${tune.steeringWheelDeg}, 540, 1080)
-  local casterDeg = clamp(tonumber(cfg.casterDeg) or ${tune.frontCasterDeg.toFixed(1)}, 3.0, 10.5)
-  local ackermannPct = clamp(tonumber(cfg.ackermannPct) or ${tune.ackermannPct}, -15, 100)
+  local casterDeg = clamp(tonumber(cfg.casterDeg) or ${tune.frontCasterDeg.toFixed(1)}, 3.5, 11.0)
   local ffbGainPct = clamp(tonumber(cfg.ffbStrengthPct) or ${tune.ffbStrengthPct}, 60, 160)
   -- Scale relative to baked JBeam lock angle so default stays exactly 1.0
   local lockScale = clamp(lockDeg / math.max(40, baseLockDeg), 0.65, 1.30)
@@ -235,11 +236,6 @@ local function applyDriftModTune()
         if h then
           if baseH.factor and type(h.factor) == "number" then
             h.factor = baseH.factor * lockScale
-            if ackermannPct < 0 then
-              h.factor = h.factor * (1 + ackermannPct * 0.002)
-            elseif ackermannPct > 0 then
-              h.factor = h.factor * (1 - ackermannPct * 0.002)
-            end
           end
           if h.inLimit then
             local delta = (baseH.inLimit - 1) * lockScale
@@ -249,8 +245,8 @@ local function applyDriftModTune()
             local delta = (baseH.outLimit - 1) * lockScale
             h.outLimit = 1 + delta
           end
-          if h.inRate then h.inRate = math.max(baseH.inRate * steerSpeed, 3.8 * steerSpeed) end
-          if h.outRate then h.outRate = math.max(baseH.outRate * steerSpeed, 3.8 * steerSpeed) end
+          if h.inRate then h.inRate = math.max(baseH.inRate * steerSpeed, 1.85 * steerSpeed) end
+          if h.outRate then h.outRate = math.max(baseH.outRate * steerSpeed, 1.85 * steerSpeed) end
           if type(h.steeringWheelLock) == "number" then
             h.steeringWheelLock = wheelDeg * 0.5
           end
@@ -295,7 +291,8 @@ local function applyDriftModTune()
       for _, w in pairs(wheels.wheels) do
         if w.pressureGroup then
           local pressure = isRearWheel(w) and rearPsi or frontPsi
-          pcall(obj.setGroupPressure, obj, w.pressureGroup, pressure * 6894.76)
+          -- BeamNG obj:setGroupPressure expects absolute Pascals (gauge PSI * 6894.757 + 101325 atm)
+          pcall(obj.setGroupPressure, obj, w.pressureGroup, (pressure * 6894.757) + 101325)
         end
       end
     end
@@ -375,50 +372,96 @@ M.updateGFX = updateGFX
 return M
 `;
 
-  const varsReference = JSON.stringify(
+  const pcParts: Record<string, string> = {
+    ...(id === 'bx'
+      ? {
+          bx_body: 'bx_body_coupe',
+          bx_ABS: '',
+          bx_strut_bar: 'bx_strut_bar',
+        }
+      : {}),
+    [`${id}_suspension_F`]: `${id}_driftmod_dw_suspension_F`,
+    [`${id}_driftmod_subframe_F`]: `${id}_driftmod_tubular_subframe_F`,
+    [`${id}_driftmod_steering_F`]: `${id}_driftmod_rack_F`,
+    [`${id}_driftmod_coilover_F`]: `${id}_driftmod_coilover_F`,
+    [`${id}_driftmod_swaybar_F`]: `${id}_driftmod_swaybar_F`,
+    [`${id}_driftmod_hub_F`]: `${id}_driftmod_hub_F`,
+    [`${id}_driftmod_brake_F`]: `${id}_driftmod_brake_F`,
+    [`${id}_driftmod_wheeldata_F`]: `${id}_driftmod_wheeldata_F`,
+    [`${id}_suspension_R`]: `${id}_driftmod_suspension_R`,
+    [`${id}_driftmod_subframe_R`]: `${id}_driftmod_subframe_R`,
+    [`${id}_driftmod_coilover_R`]: `${id}_driftmod_coilover_R`,
+    [`${id}_driftmod_swaybar_R`]: `${id}_driftmod_swaybar_R`,
+    [`${id}_driftmod_hub_R`]: `${id}_driftmod_hub_R`,
+    [`${id}_driftmod_brake_R`]: `${id}_driftmod_brake_R`,
+    [`${id}_driftmod_wheeldata_R`]: `${id}_driftmod_wheeldata_R`,
+    [`${id}_differential_R`]: `${id}_driftmod_diff_R`,
+  };
+
+  const pcVars = {
+    $dm_steer_lock: tune.steeringLockDeg,
+    $dm_steer_speed: Number(tune.steeringSpeed.toFixed(2)),
+    $dm_wheel_deg: tune.steeringWheelDeg,
+    $dm_ffb_gain: tune.ffbStrengthPct,
+    $dm_ffb_damp: tune.ffbDampingPct,
+    $dm_spring_F: frontSpringNm,
+    $dm_spring_R: rearSpringNm,
+    $dm_arb_bias_R: tune.rearArbBiasPct,
+    $dm_arb_spring_F: tune.frontArbStiffness,
+    $dm_arb_spring_R: tune.rearArbStiffness,
+    $damp_bump_F: Math.min(1600, Math.round(tune.frontBumpDamping)),
+    $damp_rebound_F: Math.min(2200, Math.round(tune.frontReboundDamping)),
+    $damp_bump_R: Math.min(1600, Math.round(tune.rearBumpDamping)),
+    $damp_rebound_R: Math.min(2200, Math.round(tune.rearReboundDamping)),
+    $rideheight_F: 0.0,
+    $rideheight_R: 0.0,
+    $trackoffset_F: 0.0,
+    $trackoffset_R: 0.0,
+    $dm_ackermann: tune.ackermannPct,
+    $dm_caster_F: Number(tune.frontCasterDeg.toFixed(1)),
+    $dm_camber_F: tune.frontCamberDeg,
+    $dm_camber_R: tune.rearCamberDeg,
+    $dm_toe_F: tune.frontToeDeg,
+    $dm_toe_R: tune.rearToeDeg,
+    $steer_center_F: 0,
+    $dm_anti_squat: tune.antiSquatPct,
+    $dm_front_psi: tune.frontTirePsi,
+    $dm_cage_rigidity: Number(tune.chassisRigidity.toFixed(2)),
+    $dm_rear_psi: tune.rearTirePsi,
+    $dm_brake_bias: tune.brakeBiasPct,
+    $braketorque_F: 2650,
+    $braketorque_R: 1450,
+    $dm_lsd_lock: tune.lsdLockPct,
+    $dm_final_drive: Number(tune.finalDriveRatio.toFixed(2)),
+    $dm_boost_psi: tune.turboBoostPsi,
+  };
+
+  const pcConfigJson = JSON.stringify(
     {
       format: 2,
       model: id,
-      parts: {
-        [`${id}_suspension_F`]: `${id}_driftmod_dw_suspension_F`,
-        [`${id}_driftmod_subframe_F`]: `${id}_driftmod_tubular_subframe_F`,
-        [`${id}_driftmod_steering_F`]: `${id}_driftmod_rack_F`,
-        [`${id}_driftmod_coilover_F`]: `${id}_driftmod_coilover_F`,
-        [`${id}_suspension_R`]: `${id}_driftmod_suspension_R`,
-      },
-      vars: {
-        $dm_steer_lock: tune.steeringLockDeg,
-        $dm_steer_speed: tune.steeringSpeed,
-        $dm_wheel_deg: tune.steeringWheelDeg,
-        $dm_ffb_gain: tune.ffbStrengthPct,
-        $dm_ffb_damp: tune.ffbDampingPct,
-        $dm_spring_F: frontSpringNm,
-        $dm_spring_R: rearSpringNm,
-        $dm_arb_bias_R: tune.rearArbBiasPct,
-        $dm_arb_spring_F: tune.frontArbStiffness,
-        $dm_arb_spring_R: tune.rearArbStiffness,
-        $damp_bump_F: tune.frontBumpDamping,
-        $damp_rebound_F: tune.frontReboundDamping,
-        $damp_bump_R: tune.rearBumpDamping,
-        $damp_rebound_R: tune.rearReboundDamping,
-        $dm_ackermann: tune.ackermannPct,
-        $dm_camber_F: tune.frontCamberDeg,
-        $dm_camber_R: tune.rearCamberDeg,
-        $dm_toe_F: tune.frontToeDeg,
-        $dm_toe_R: tune.rearToeDeg,
-        $dm_anti_squat: tune.antiSquatPct,
-        $dm_front_psi: tune.frontTirePsi,
-        $dm_cage_rigidity: tune.chassisRigidity,
-        $dm_rear_psi: tune.rearTirePsi,
-        $dm_brake_bias: tune.brakeBiasPct,
-        $dm_lsd_lock: tune.lsdLockPct,
-        $dm_final_drive: tune.finalDriveRatio,
-        $dm_boost_psi: tune.turboBoostPsi,
-      },
+      parts: pcParts,
+      vars: pcVars,
     },
     null,
     2
   );
+
+  const pcInfoJson = JSON.stringify(
+    {
+      Configuration: 'DriftMod Pro Drift',
+      'Config Type': 'Custom',
+      Description: `DriftMod Double Wishbone setup (${tune.steeringLockDeg}deg lock, +${tune.frontCasterDeg.toFixed(1)}deg caster, ${tune.frontCamberDeg.toFixed(1)}deg front camber, ${tune.frontTirePsi}/${tune.rearTirePsi} PSI, 900deg FFB).`,
+      Drivetrain: 'RWD',
+      Transmission: 'Manual',
+      Value: 24500,
+      'Performance Class': '7',
+    },
+    null,
+    2
+  );
+
+  const varsReference = pcConfigJson;
 
   const scoringLua = `-- DriftMod Live Telemetry & Scoring Extension for BeamNG.drive
 -- Auto-loaded from scripts/driftmod/modScript.lua
@@ -503,6 +546,22 @@ return M
       content: modScriptLua,
     },
     {
+      filename: 'driftmod_pro_drift.pc',
+      relativePath: `vehicles/${id}/driftmod_pro_drift.pc`,
+      language: 'json',
+      summary:
+        'Ready-to-spawn BeamNG.drive .pc vehicle configuration with all DriftMod Double Wishbone parts, alignment, coilovers, and tire pressures pre-loaded.',
+      content: pcConfigJson,
+    },
+    {
+      filename: 'info_driftmod_pro_drift.json',
+      relativePath: `vehicles/${id}/info_driftmod_pro_drift.json`,
+      language: 'json',
+      summary:
+        'BeamNG Vehicle Selector metadata displaying "DriftMod Pro Drift" as a selectable custom configuration.',
+      content: pcInfoJson,
+    },
+    {
       filename: `driftmod_${id}_vars.json`,
       relativePath: `vehicles/${id}/driftmod/driftmod_${id}_vars.json`,
       language: 'json',
@@ -552,18 +611,21 @@ export function buildModZipBlob(files: ModFileSpec[], chassisName: string): Blob
     '',
     '2. Enable the mod in BeamNG -> Repository -> Mods Manager if not auto-activated.',
     '',
-    '3. Spawn your vehicle, open Vehicle Config (Ctrl+W) -> Parts:',
-    '   - Front Suspension -> Select "DriftMod Double Wishbone Front Suspension"',
-    '     Sub-slots now appear underneath for:',
-    '       * Front Subframe (Chromoly Tubular or Gusseted Street)',
-    '       * Steering Rack (Quick-Ratio Drift Rack with Ackermann & 900deg FFB)',
-    '       * Front Coilovers (2-Way Drift Coilovers)',
-    '       * Front Sway Bar & Front Drop-Knuckle 5-Lug Hubs (with 5-lug wheels)',
-    '   - Rear Suspension -> Select "DriftMod Anti-Squat Multi-Link Rear Suspension"',
-    '     with Rear Subframe, Rear Coilovers, Rear Sway Bar, Rear 5-Lug Hubs & Rear Diff.',
+    '3. Quick Spawn: Open Vehicle Selector -> your car -> pick "DriftMod Pro Drift" directly!',
+    '   (Or open Vehicle Config Ctrl+W -> Save & Load -> Load "driftmod_pro_drift".)',
     '',
-    '4. Open Vehicle Config -> Tuning to fine-tune FFB Self-Steer Gain, Rack Damping,',
-    '   900deg Wheel Lock, Coilover Springs/Damping, Ride Height, Rear PSI, LSD & Final Drive.',
+    '4. Manual Parts Selection (Ctrl+W -> Parts):',
+    '   - Front Suspension -> Select "DriftMod Double Wishbone Front Suspension"',
+    '     Sub-slots appear underneath for:',
+    '       * Front Subframe (Chromoly Tubular or Gusseted Street)',
+    '       * Steering Rack (Quick-Ratio Drift Rack with velocity-split damping & 900deg FFB)',
+    '       * Front Coilovers (2-Way Drift Coilovers)',
+    '       * Front Sway Bar (Torsionbar) & Front Drop-Knuckle 5-Lug Hubs (with 5-lug wheels)',
+    '   - Rear Suspension -> Select "DriftMod Anti-Squat Multi-Link Rear Suspension"',
+    '     with Rear Subframe, Rear Coilovers, Rear Sway Bar (Torsionbar), Rear 5-Lug Hubs & Rear Diff.',
+    '',
+    '5. Open Vehicle Config -> Tuning to adjust Front Caster, Camber, Toe, FFB Self-Steer Gain,',
+    '   Rack Damping, Coilover Springs/Damping, Ride Height, Front/Rear PSI, LSD & Final Drive.',
     '',
   ].join('\n');
 
